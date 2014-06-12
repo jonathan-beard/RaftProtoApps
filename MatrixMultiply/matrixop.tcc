@@ -34,7 +34,6 @@
 #include "ringbuffer.tcc"
 
 #define PARALLEL     1
-#define NUMWORKERS   4
 
 
 enum Format { CSV, SPACE };
@@ -323,7 +322,7 @@ template< typename Type > struct ParallelMatrixMult
 
 
 
-template< typename T > class MatrixOp {
+template< typename T, size_t THREADS = 1 > class MatrixOp {
 public:
    MatrixOp() = delete;
    virtual ~MatrixOp() = delete;
@@ -343,20 +342,20 @@ public:
          return( nullptr );
       }
 #ifdef PARALLEL
-      std::array< std::thread*, NUMWORKERS > thread_pool;
-      std::array< PBuffer*,     NUMWORKERS > buffer_list;
-      for( size_t i( 0 ); i < NUMWORKERS; i++ )
+      std::array< std::thread*, THREADS > thread_pool;
+      std::array< PBuffer*,     THREADS > buffer_list;
+      for( size_t i( 0 ); i < THREADS; i++ )
       {
          buffer_list[ i ] = new PBuffer( 1000000 );
       }
-      for( size_t i( 0 ); i < NUMWORKERS; i++ )
+      for( size_t i( 0 ); i < THREADS; i++ )
       {
          thread_pool[ i ] = new std::thread( mult_thread_worker,
                                              buffer_list[ i ]  );
       }
       
       std::default_random_engine generator;
-      std::uniform_int_distribution< int > distribution( 0, (NUMWORKERS - 1) );
+      std::uniform_int_distribution< int > distribution( 0, (THREADS - 1) );
       auto gen_index( std::bind( distribution, generator ) );
 #endif
       Matrix< T > *output = new Matrix< T >( a->height, b->width );
@@ -398,7 +397,7 @@ public:
          }
       }
 #ifdef PARALLEL
-      for( size_t i( 0 ); i < NUMWORKERS; i++ )
+      for( size_t i( 0 ); i < THREADS; i++ )
       {
          ParallelMatrixMult< T > finaljob( true );
          buffer_list[ i ]->push_back( finaljob ); 

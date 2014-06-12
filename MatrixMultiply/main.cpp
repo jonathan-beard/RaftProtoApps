@@ -32,7 +32,7 @@ main( int argc, char **argv )
 //   auto *x = Matrix< float >::initFromFile( filename );
    //same matrix, avoid reading from disk again 
    auto *x = new Matrix< float >( *A );
-   auto *output = MatrixOp< float >::multiply( A, x );
+   auto *output = MatrixOp< float, 4 >::multiply( A, x );
    
    output->print( std::cout, Format::CSV );
 

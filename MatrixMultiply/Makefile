@@ -2,25 +2,27 @@ CC    = gcc
 CXX   = g++
 
 
-include ~/GIT_RPO/simpleringbuffer/buffer.makefile
+include $(shell echo ~/)/GIT_RPO/simpleringbuffer/buffer.makefile
 
-CFLAGS =     -O2 -Wall -std=c99
-CXXFLAGS =   -O2 -Wall -std=c++11
+DIRINCS = $(RINGBUFFERDIR) 
+
+CFLAGS =     -O3 -Wall -std=c99
+CXXFLAGS =   -O3 -Wall -std=c++11
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom
 
 
-COBJS =  $(RINGBUFFERCOBJS) 
-CXXOBJS = main $(RINGBUFFERCPPOBJS) 
+COBJS =  $(RBCOBJS) 
+CXXOBJS = main $(RBCXXOBJS) 
 
-CFILES = $(addsuffix .c, $(COBJS) )
-
-CXXFILES = $(addsuffix .cpp, $(CXXOBJS) )
+CFILES = $(addsuffix .c, $(COBJS))
+CXXFILES = $(addsuffix .cpp, $(CXXOBJS))
 
 OBJS = $(addsuffix .o, $(COBJS) ) $(addsuffix .o, $(CXXOBJS) )
 
-DIRINCS = $(RINGBUFFERDIR) 
+
+
 
 INCS = $(addprefix -I, $(DIRINCS))
 LIBS = -lpthread #-lrt
