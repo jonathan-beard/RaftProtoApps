@@ -1,18 +1,28 @@
 CC    = gcc
 CXX   = g++
 
-CFLAGS =    -O2 -Wall -std=c99
-CXXFLAGS =  -O2 -Wall -std=c++11
 
-COBJS =   getrandom
-CXXOBJS = main pointer shm  
+include ~/GIT_RPO/simpleringbuffer/buffer.makefile
+
+CFLAGS =     -O2 -Wall -std=c99
+CXXFLAGS =   -O2 -Wall -std=c++11
+
+BUFFERCPPOBJS = pointer shm
+BUFFERCOBJS   = getrandom
+
+
+COBJS =  $(RINGBUFFERCOBJS) 
+CXXOBJS = main $(RINGBUFFERCPPOBJS) 
 
 CFILES = $(addsuffix .c, $(COBJS) )
+
 CXXFILES = $(addsuffix .cpp, $(CXXOBJS) )
 
 OBJS = $(addsuffix .o, $(COBJS) ) $(addsuffix .o, $(CXXOBJS) )
 
-INCS = 
+DIRINCS = $(RINGBUFFERDIR) 
+
+INCS = $(addprefix -I, $(DIRINCS))
 LIBS = -lpthread #-lrt
 
 EXE  = mmult
