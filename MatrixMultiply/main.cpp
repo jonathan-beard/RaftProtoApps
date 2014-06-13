@@ -21,6 +21,10 @@
 #include <cstdlib>
 #include "matrixop.tcc"
 
+#include "SystemClock.tcc"
+
+Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
+
 int
 main( int argc, char **argv )
 {
@@ -32,9 +36,12 @@ main( int argc, char **argv )
 //   auto *x = Matrix< float >::initFromFile( filename );
    //same matrix, avoid reading from disk again 
    auto *x = new Matrix< float >( *A );
-   auto *output = MatrixOp< float, 4 >::multiply( A, x );
    
-   output->print( std::cout, Format::CSV );
+   const auto start_time( system_clock->getTime() );
+   auto *output = MatrixOp< float, 1 >::multiply( A, x );
+   const auto end_time( system_clock->getTime() );
+   std::cout << ( end_time - start_time ) << "\n";
+   //output->print( std::cout, Format::CSV );
 
    delete( A );
    delete( x );

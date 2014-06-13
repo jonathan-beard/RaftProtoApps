@@ -6,8 +6,12 @@ include $(shell echo ~/)/GIT_RPO/simpleringbuffer/buffer.makefile
 
 DIRINCS = $(RINGBUFFERDIR) 
 
-CFLAGS =     -O3 -Wall -std=c99
-CXXFLAGS =   -O3 -Wall -std=c++11
+ifneq ($(shell uname -s), Darwin)
+RT = -lrt
+endif
+
+CFLAGS =     -O3 -Wall -std=c99	 -DAMD=1 
+CXXFLAGS =   -O3 -Wall -std=c++11 -DAMD=1 
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom
@@ -25,7 +29,7 @@ OBJS = $(addsuffix .o, $(COBJS) ) $(addsuffix .o, $(CXXOBJS) )
 
 
 INCS = $(addprefix -I, $(DIRINCS))
-LIBS = -lpthread #-lrt
+LIBS = -lpthread $(RT)
 
 EXE  = mmult
 
