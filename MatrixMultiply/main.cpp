@@ -38,7 +38,7 @@ main( int argc, char **argv )
    auto *x = new Matrix< float >( *A );
    
    const auto start_time( system_clock->getTime() );
-   auto *output = MatrixOp< float, 1 >::multiply( A, x );
+   auto *output = MatrixOp< float, 4 >::multiply( A, x );
    const auto end_time( system_clock->getTime() );
    std::cout << ( end_time - start_time ) << "\n";
    //output->print( std::cout, Format::CSV );

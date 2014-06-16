@@ -327,7 +327,7 @@ public:
    MatrixOp() = delete;
    virtual ~MatrixOp() = delete;
 
-   typedef RingBuffer< ParallelMatrixMult< T > > PBuffer;
+   typedef RingBuffer< ParallelMatrixMult< T >, RingBufferType::Infinite, true > PBuffer;
    
    static Matrix< T >* multiply( Matrix< T > *a, 
                                  Matrix< T > *b ) 
@@ -346,7 +346,7 @@ public:
       std::array< PBuffer*,     THREADS > buffer_list;
       for( size_t i( 0 ); i < THREADS; i++ )
       {
-         buffer_list[ i ] = new PBuffer( 1000000 );
+         buffer_list[ i ] = new PBuffer( 100 );
       }
       for( size_t i( 0 ); i < THREADS; i++ )
       {
@@ -360,6 +360,9 @@ public:
 #endif
       Matrix< T > *output = new Matrix< T >( a->height, b->width );
       Matrix< T > *b_rotated = b->rotate();
+#ifdef PARALLEL
+      const auto length( b_rotated->height * a->height - 1 );
+#endif
       for( size_t b_row_index( 0 ); 
             b_row_index < b_rotated->height; b_row_index++ )
       {
@@ -380,7 +383,12 @@ public:
             do{
                index = gen_index();
             } while( buffer_list[ index ]->space_avail() == 0 );
-            buffer_list[ index ]->push_back( job );
+            buffer_list[ index ]->push( job,
+                                        ( 
+                                          index >= (length - THREADS) ?
+                                          RBSignal::RBEOF : 
+                                          RBSignal::RBNONE
+                                        ));
 #else
             for( size_t a_column_index( 0 ), 
                b_column_index( 0 ); a_column_index < a->width; 
@@ -399,8 +407,7 @@ public:
 #ifdef PARALLEL
       for( size_t i( 0 ); i < THREADS; i++ )
       {
-         ParallelMatrixMult< T > finaljob( true );
-         buffer_list[ i ]->push_back( finaljob ); 
+         buffer_list[ i ]->send_signal( RBSignal::RBEOF );
       }
       for( auto *thread : thread_pool )
       {
@@ -410,6 +417,9 @@ public:
       }
       for( auto *buffer : buffer_list )
       {
+         auto &monitor_data( buffer->getQueueData() );
+         Monitor::QueueData::print( monitor_data, Monitor::QueueData::MB, std::cerr, true );
+         std::cerr << "\n";
          delete( buffer );
          buffer = nullptr;
       }
@@ -494,13 +504,9 @@ protected:
    static void mult_thread_worker( PBuffer *buffer )
    {
       
-      while( true )
+      while( buffer->get_signal() != 1 )
       {
          auto val( buffer->pop() );
-         if( val.done )
-         {
-            return;
-         }
          for( size_t a_index( val.a_start ), b_index( val.b_start );
                a_index < val.a_end && b_index < val.b_end;
                   a_index++, b_index++ )

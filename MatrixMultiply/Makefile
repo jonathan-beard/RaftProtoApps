@@ -2,7 +2,7 @@ CC    = gcc
 CXX   = g++
 
 
-include $(shell echo ~/)/GIT_RPO/simpleringbuffer/buffer.makefile
+include ../../simpleringbuffer/buffer.makefile
 
 DIRINCS = $(RINGBUFFERDIR) 
 
@@ -10,8 +10,8 @@ ifneq ($(shell uname -s), Darwin)
 RT = -lrt
 endif
 
-CFLAGS =     -O3 -Wall -std=c99	 -DAMD=1 
-CXXFLAGS =   -O3 -Wall -std=c++11 -DAMD=1 
+CFLAGS =     -O0 -g -Wall -std=c99	 -DAMD=1 
+CXXFLAGS =   -O0 -g -Wall -std=c++11 -DAMD=1 
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom
