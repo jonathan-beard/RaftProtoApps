@@ -25,6 +25,8 @@
 
 Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
 
+typedef double thetype_t;
+
 int
 main( int argc, char **argv )
 {
@@ -32,16 +34,16 @@ main( int argc, char **argv )
    const std::string filename( "randomarray.csv" );
    //const std::string filename( "/project/mercury/svardata/randommatrix.csv" );
 
-   auto *A = Matrix< float >::initFromFile( filename );
-//   auto *x = Matrix< float >::initFromFile( filename );
+   auto *A = Matrix< thetype_t >::initFromFile( filename );
+//   auto *x = Matrix< thetype_t >::initFromFile( filename );
    //same matrix, avoid reading from disk again 
-   auto *x = new Matrix< float >( *A );
+   auto *x = new Matrix< thetype_t >( *A );
    
    const auto start_time( system_clock->getTime() );
-   auto *output = MatrixOp< float, 4 >::multiply( A, x );
+   auto *output = MatrixOp< thetype_t, 4 >::multiply( A, x );
    const auto end_time( system_clock->getTime() );
-   std::cout << ( end_time - start_time ) << "\n";
-   //output->print( std::cout, Format::CSV );
+   std::cerr << ( end_time - start_time ) << "\n";
+   output->print( std::cout, Format::CSV );
 
    delete( A );
    delete( x );

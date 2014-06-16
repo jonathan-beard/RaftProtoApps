@@ -327,7 +327,9 @@ public:
    MatrixOp() = delete;
    virtual ~MatrixOp() = delete;
 
-   typedef RingBuffer< ParallelMatrixMult< T >, RingBufferType::Infinite, true > PBuffer;
+   typedef RingBuffer< ParallelMatrixMult< T >
+  /* , RingBufferType::Infinite, true */
+         > PBuffer;
    
    static Matrix< T >* multiply( Matrix< T > *a, 
                                  Matrix< T > *b ) 
@@ -361,7 +363,7 @@ public:
       Matrix< T > *output = new Matrix< T >( a->height, b->width );
       Matrix< T > *b_rotated = b->rotate();
 #ifdef PARALLEL
-      const auto length( b_rotated->height * a->height - 1 );
+      const auto stop_index( b->height * b->width - THREADS );
 #endif
       for( size_t b_row_index( 0 ); 
             b_row_index < b_rotated->height; b_row_index++ )
@@ -385,7 +387,7 @@ public:
             } while( buffer_list[ index ]->space_avail() == 0 );
             buffer_list[ index ]->push( job,
                                         ( 
-                                          index >= (length - THREADS) ?
+                                          output_index >= stop_index ?
                                           RBSignal::RBEOF : 
                                           RBSignal::RBNONE
                                         ));
@@ -405,10 +407,6 @@ public:
          }
       }
 #ifdef PARALLEL
-      for( size_t i( 0 ); i < THREADS; i++ )
-      {
-         buffer_list[ i ]->send_signal( RBSignal::RBEOF );
-      }
       for( auto *thread : thread_pool )
       {
          thread->join();
@@ -417,9 +415,11 @@ public:
       }
       for( auto *buffer : buffer_list )
       {
+#if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
          Monitor::QueueData::print( monitor_data, Monitor::QueueData::MB, std::cerr, true );
          std::cerr << "\n";
+#endif         
          delete( buffer );
          buffer = nullptr;
       }
@@ -504,7 +504,7 @@ protected:
    static void mult_thread_worker( PBuffer *buffer )
    {
       
-      while( buffer->get_signal() != 1 )
+      while( buffer->get_signal() != RBSignal::RBEOF )
       {
          auto val( buffer->pop() );
          for( size_t a_index( val.a_start ), b_index( val.b_start );
@@ -516,6 +516,7 @@ protected:
                   val.b->matrix[ b_index ];
          }
       }
+      return;
    }
 };
 #endif /* END _MATRIXOP_TCC_ */
