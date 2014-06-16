@@ -363,7 +363,7 @@ public:
       Matrix< T > *output = new Matrix< T >( a->height, b->width );
       Matrix< T > *b_rotated = b->rotate();
 #ifdef PARALLEL
-      const auto stop_index( b->height * b->width - THREADS );
+      const auto stop_index( b->height * b->width - THREADS - 1 );
 #endif
       for( size_t b_row_index( 0 ); 
             b_row_index < b_rotated->height; b_row_index++ )
@@ -385,12 +385,7 @@ public:
             do{
                index = gen_index();
             } while( buffer_list[ index ]->space_avail() == 0 );
-            buffer_list[ index ]->push( job,
-                                        ( 
-                                          output_index >= stop_index ?
-                                          RBSignal::RBEOF : 
-                                          RBSignal::RBNONE
-                                        ));
+            buffer_list[ index ]->push( job );
 #else
             for( size_t a_column_index( 0 ), 
                b_column_index( 0 ); a_column_index < a->width; 

@@ -23,7 +23,7 @@
 
 #include "SystemClock.tcc"
 
-Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
+Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
 typedef double thetype_t;
 
@@ -31,8 +31,10 @@ int
 main( int argc, char **argv )
 {
    
-   const std::string filename( "randomarray.csv" );
+   
+  // const std::string filename( "randomarray.csv" );
    //const std::string filename( "/project/mercury/svardata/randommatrix.csv" );
+   const std::string filename( "supersmall.csv" );
 
    auto *A = Matrix< thetype_t >::initFromFile( filename );
 //   auto *x = Matrix< thetype_t >::initFromFile( filename );
@@ -40,7 +42,7 @@ main( int argc, char **argv )
    auto *x = new Matrix< thetype_t >( *A );
    
    const auto start_time( system_clock->getTime() );
-   auto *output = MatrixOp< thetype_t, 4 >::multiply( A, x );
+   auto *output = MatrixOp< thetype_t, 5 >::multiply( A, x );
    const auto end_time( system_clock->getTime() );
    std::cerr << ( end_time - start_time ) << "\n";
    output->print( std::cout, Format::CSV );
