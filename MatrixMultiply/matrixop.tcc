@@ -356,14 +356,12 @@ public:
                                              buffer_list[ i ]  );
       }
       
-      std::default_random_engine generator;
-      std::uniform_int_distribution< int > distribution( 0, (THREADS - 1) );
-      auto gen_index( std::bind( distribution, generator ) );
 #endif
       Matrix< T > *output = new Matrix< T >( a->height, b->width );
       Matrix< T > *b_rotated = b->rotate();
 #ifdef PARALLEL
-      const auto stop_index( b->height * b->width - THREADS - 1 );
+      int64_t stop_index( b->height * b->width );
+      uint32_t index( 0 );
 #endif
       for( size_t b_row_index( 0 ); 
             b_row_index < b_rotated->height; b_row_index++ )
@@ -381,11 +379,13 @@ public:
                        (b_row_index * b_rotated->width) + a->width /* b_end    */,
                         output                                    /* output mat */,
                         output_index                  /* self-explanatory */ );
-            auto index( 0 );
             do{
-               index = gen_index();
+               index = (index + 1 ) % THREADS ;
             } while( buffer_list[ index ]->space_avail() == 0 );
-            buffer_list[ index ]->push( job );
+            buffer_list[ index ]->push( job 
+//               ( stop_index-- > THREADS ? RBSignal::RBNONE :
+                                            // RBSignal::RBQUIT)
+               );
 #else
             for( size_t a_column_index( 0 ), 
                b_column_index( 0 ); a_column_index < a->width; 
@@ -402,6 +402,10 @@ public:
          }
       }
 #ifdef PARALLEL
+      for( auto *buffer : buffer_list )
+      {
+         buffer->send_signal( RBSignal::RBQUIT );
+      }
       for( auto *thread : thread_pool )
       {
          thread->join();
@@ -498,9 +502,9 @@ protected:
 
    static void mult_thread_worker( PBuffer *buffer )
    {
-      
-      while( buffer->get_signal() != RBSignal::RBEOF )
+      while( buffer->get_signal() != RBSignal::RBQUIT )
       {
+         if( buffer->size() == 0 ) continue;
          auto val( buffer->pop() );
          for( size_t a_index( val.a_start ), b_index( val.b_start );
                a_index < val.a_end && b_index < val.b_end;
