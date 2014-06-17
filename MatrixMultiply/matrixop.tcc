@@ -382,10 +382,15 @@ public:
             do{
                index = (index + 1 ) % THREADS ;
             } while( buffer_list[ index ]->space_avail() == 0 );
-            buffer_list[ index ]->push( job 
-//               ( stop_index-- > THREADS ? RBSignal::RBNONE :
-                                            // RBSignal::RBQUIT)
-               );
+            if( stop_index-- > THREADS )
+            {
+               buffer_list[ index ]->push( job );
+            }
+            else
+            {
+               /** go ahead and tell the threads we used to shutdown **/
+               buffer_list[ index ]->push( job, RBSignal::RBEOF );
+            }
 #else
             for( size_t a_column_index( 0 ), 
                b_column_index( 0 ); a_column_index < a->width; 
@@ -402,16 +407,23 @@ public:
          }
       }
 #ifdef PARALLEL
+      /**
+       * just in case a user specifies more threads than are
+       * used send asynchronous shutdown signal to rest of 
+       * threads through FIFO
+       */
       for( auto *buffer : buffer_list )
       {
-         buffer->send_signal( RBSignal::RBQUIT );
+         buffer->send_signal( RBSignal::RBEOF );
       }
+      /** join threads **/
       for( auto *thread : thread_pool )
       {
          thread->join();
          delete( thread );
          thread = nullptr;
       }
+      /** get info **/
       for( auto *buffer : buffer_list )
       {
 #if MONITOR         
@@ -502,20 +514,27 @@ protected:
 
    static void mult_thread_worker( PBuffer *buffer )
    {
-      while( buffer->get_signal() != RBSignal::RBQUIT )
+      while( true  )
       {
-         if( buffer->size() == 0 ) continue;
-         auto val( buffer->pop() );
-         for( size_t a_index( val.a_start ), b_index( val.b_start );
-               a_index < val.a_end && b_index < val.b_end;
-                  a_index++, b_index++ )
+         if( buffer->size() > 0 )
          {
-            val.output->matrix[ val.output_index ] +=
-               val.a->matrix[ a_index ] *
-                  val.b->matrix[ b_index ];
+            /** consume data **/
+            auto val( buffer->pop() );
+            for( size_t a_index( val.a_start ), b_index( val.b_start );
+                  a_index < val.a_end && b_index < val.b_end;
+                     a_index++, b_index++ )
+            {
+               val.output->matrix[ val.output_index ] +=
+                  val.a->matrix[ a_index ] *
+                     val.b->matrix[ b_index ];
+            }
+         }
+         else if( buffer->get_signal() == RBSignal::RBEOF )
+         {
+            /** we're done, end of file **/
+            return;
          }
       }
-      return;
    }
 };
 #endif /* END _MATRIXOP_TCC_ */
