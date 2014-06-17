@@ -514,27 +514,25 @@ protected:
 
    static void mult_thread_worker( PBuffer *buffer )
    {
-      while( true  )
+      bool exit( false );
+      while( ! exit || buffer->size() > 0  )
       {
-         if( buffer->size() > 0 )
+         /** consume data **/
+         auto val( buffer->pop() );
+         for( size_t a_index( val.a_start ), b_index( val.b_start );
+               a_index < val.a_end && b_index < val.b_end;
+                  a_index++, b_index++ )
          {
-            /** consume data **/
-            auto val( buffer->pop() );
-            for( size_t a_index( val.a_start ), b_index( val.b_start );
-                  a_index < val.a_end && b_index < val.b_end;
-                     a_index++, b_index++ )
-            {
-               val.output->matrix[ val.output_index ] +=
-                  val.a->matrix[ a_index ] *
-                     val.b->matrix[ b_index ];
-            }
+            val.output->matrix[ val.output_index ] +=
+               val.a->matrix[ a_index ] *
+                  val.b->matrix[ b_index ];
          }
-         else if( buffer->get_signal() == RBSignal::RBEOF )
+         if( ! exit )
          {
-            /** we're done, end of file **/
-            return;
+            exit = ( buffer->get_signal() == RBSignal::RBEOF );
          }
       }
+      return;
    }
 };
 #endif /* END _MATRIXOP_TCC_ */

@@ -1,5 +1,5 @@
-CC    = gcc
-CXX   = g++
+CC    ?= gcc
+CXX   ?= g++
 
 
 include ../../simpleringbuffer/buffer.makefile
@@ -8,10 +8,11 @@ DIRINCS = $(RINGBUFFERDIR)
 
 ifneq ($(shell uname -s), Darwin)
 RT = -lrt
+STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-CFLAGS =     -O0  -Wall -std=c99	 -DAMD=1 
-CXXFLAGS =   -O0  -Wall -std=c++11 -DAMD=1 
+CFLAGS =     -O3  -msse4.1 -Wall -std=c99	  -DRDTSCP=1 $(STATIC)
+CXXFLAGS =   -O3  -msse4.1 -Wall -std=c++11 -DRDTSCP=1 $(STATIC) 
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom
@@ -38,10 +39,10 @@ compile: $(CXXFILES) $(CFILES)
 	$(CXX) $(CXXFLAGS) $(INCS) $(OBJS) $(LIBS) -o $(EXE)
 
 %.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) $(INCS) -o $@ $<
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $(INCS) -o $@ $<
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $(INCS) -o $@ $<
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(INCS) -o $@ $<
 
 .PHONY: clean
 clean:
