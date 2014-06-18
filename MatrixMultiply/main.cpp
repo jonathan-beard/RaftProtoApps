@@ -23,7 +23,7 @@
 
 #include "SystemClock.tcc"
 
-Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
+Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
 typedef double thetype_t;
 
@@ -38,11 +38,13 @@ main( int argc, char **argv )
 
    auto *A = Matrix< thetype_t >::initFromFile( filename );
 //   auto *x = Matrix< thetype_t >::initFromFile( filename );
+   
    //same matrix, avoid reading from disk again 
    auto *x = new Matrix< thetype_t >( *A );
-   
+   auto *output = new Matrix< thetype_t >( A->height, x->width );
+
    const auto start_time( system_clock->getTime() );
-   auto *output( MatrixOp< thetype_t, 6 >::multiply( A, x ) );
+   MatrixOp< thetype_t, 8 >::multiply( A, x, output );
    const auto end_time( system_clock->getTime() );
    std::cerr << ( end_time - start_time ) << "\n";
    output->print( std::cout, Format::CSV );

@@ -33,6 +33,7 @@
 #include <functional>
 #include "ringbuffer.tcc"
 
+#define MONITOR      1
 #define PARALLEL     1
 
 
@@ -326,38 +327,46 @@ template< typename T, size_t THREADS = 1 > class MatrixOp {
 public:
    MatrixOp() = delete;
    virtual ~MatrixOp() = delete;
-
-   typedef RingBuffer< ParallelMatrixMult< T >
-  /* , RingBufferType::Infinite, true */
-         > PBuffer;
+#if MONITOR == 1
+   typedef RingBuffer< ParallelMatrixMult< T >, 
+                       RingBufferType::Heap, 
+                       true >                      PBuffer;
+#else   
+   typedef RingBuffer< ParallelMatrixMult< T > >   PBuffer;
+#endif
    
-   static Matrix< T >* multiply( Matrix< T > *a, 
-                                 Matrix< T > *b ) 
+   static void multiply(   Matrix< T > *a, 
+                           Matrix< T > *b,
+                           Matrix< T > *output ) 
                                  
    {
       assert( a != nullptr );
       assert( b != nullptr );
+      assert( output != nullptr );
       if( a->width != b->height )
       {
          //TODO make some proper exceptions
          std::cerr << "Matrix a's width must equal matrix b's height.\n";
-         return( nullptr );
+         return;
       }
 #ifdef PARALLEL
-      std::array< std::thread*, THREADS > thread_pool;
-      std::array< PBuffer*,     THREADS > buffer_list;
-      for( size_t i( 0 ); i < THREADS; i++ )
+      std::array< std::thread*, THREADS + 1 /* consumer thread */ > thread_pool;
+      std::array< PBuffer*,     THREADS * 2 > buffer_list;
+      for( size_t i( 0 ); i < THREADS * 2; i++ )
       {
          buffer_list[ i ] = new PBuffer( 100 );
       }
       for( size_t i( 0 ); i < THREADS; i++ )
       {
          thread_pool[ i ] = new std::thread( mult_thread_worker,
-                                             buffer_list[ i ]  );
+                                             buffer_list[ i ],
+                                             buffer_list[ i + THREADS ] );
       }
+      thread_pool[ THREADS + 1 ] = new std::thread( mult_thread_consumer,
+                                                    std::ref( buffer_list.begin() + THREADS ),
+                                                    std::ref( buffer_list.end() ) );
       
 #endif
-      Matrix< T > *output = new Matrix< T >( a->height, b->width );
       Matrix< T > *b_rotated = b->rotate();
 #ifdef PARALLEL
       int64_t stop_index( b->height * b->width );
@@ -436,7 +445,6 @@ public:
       }
 #endif
       delete( b_rotated );
-      return( output );
    }
 
 
@@ -533,6 +541,23 @@ protected:
          }
       }
       return;
+   }
+
+   template < class iterator_type >
+   static void mult_thread_consumer( PBuffer *buffer, iterator_type begin, iterator_type end )
+   {
+      bool exit( false );
+      bool empty( false );
+      while( !exit || !empty )
+      {
+         empty = true;
+         for( auto it( begin ); it != end; ++it )
+         {
+            /** start checking for data **/
+            if( (*it)->
+
+         }
+      }
    }
 };
 #endif /* END _MATRIXOP_TCC_ */

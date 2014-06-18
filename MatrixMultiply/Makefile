@@ -11,8 +11,8 @@ RT = -lrt
 STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-CFLAGS =     -O3  -msse4.1 -Wall -std=c99	  -DRDTSCP=1 $(STATIC)
-CXXFLAGS =   -O3  -msse4.1 -Wall -std=c++11 -DRDTSCP=1 $(STATIC) 
+CFLAGS =     -O2  -Wall -std=c99	  -DRDTSCP=1 $(STATIC)
+CXXFLAGS =   -O2  -Wall -std=c++11 -DRDTSCP=1 $(STATIC) 
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom
