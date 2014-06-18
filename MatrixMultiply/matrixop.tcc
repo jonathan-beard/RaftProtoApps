@@ -321,6 +321,28 @@ template< typename Type > struct ParallelMatrixMult
    bool         done;
 };
 
+template < typename Type > struct  OutputValue
+{
+   OutputValue() : index( 0 ),
+                   value( 0 )
+   {
+   }
+
+   OutputValue( const OutputValue &other )
+   {
+      index   = other.index;
+      value   = other.value;
+   }
+
+   void operator = ( const OutputValue &other )
+   {
+      index   = other.index;
+      value   = other.value;
+   }
+
+   size_t   index;
+   Type     value;
+};
 
 
 template< typename T, size_t THREADS = 1 > class MatrixOp {
@@ -331,8 +353,13 @@ public:
    typedef RingBuffer< ParallelMatrixMult< T >, 
                        RingBufferType::Heap, 
                        true >                      PBuffer;
+   
+   typedef RingBuffer< OutputValue< T >,
+                       RingBufferType::Heap,
+                       true >                      OutputBuffer;
 #else   
    typedef RingBuffer< ParallelMatrixMult< T > >   PBuffer;
+   typedef RingBuffer< OutputValue< T > >          OutputBuffer;
 #endif
    
    static void multiply(   Matrix< T > *a, 
@@ -351,20 +378,22 @@ public:
       }
 #ifdef PARALLEL
       std::array< std::thread*, THREADS + 1 /* consumer thread */ > thread_pool;
-      std::array< PBuffer*,     THREADS * 2 > buffer_list;
-      for( size_t i( 0 ); i < THREADS * 2; i++ )
+      std::array< PBuffer*,      THREADS >    buffer_list;
+      std::array< OutputBuffer*, THREADS >    output_list;
+      for( size_t i( 0 ); i < THREADS; i++ )
       {
          buffer_list[ i ] = new PBuffer( 100 );
+         output_list[ i ] = new OutputBuffer( 100 );
       }
       for( size_t i( 0 ); i < THREADS; i++ )
       {
          thread_pool[ i ] = new std::thread( mult_thread_worker,
                                              buffer_list[ i ],
-                                             buffer_list[ i + THREADS ] );
+                                             output_list[ i ] );
       }
-      thread_pool[ THREADS + 1 ] = new std::thread( mult_thread_consumer,
-                                                    std::ref( buffer_list.begin() + THREADS ),
-                                                    std::ref( buffer_list.end() ) );
+      thread_pool[ THREADS ] = new std::thread( mult_thread_consumer,
+                                                    std::ref( output_list ),
+                                                    output );
       
 #endif
       Matrix< T > *b_rotated = b->rotate();
@@ -425,6 +454,12 @@ public:
       {
          buffer->send_signal( RBSignal::RBEOF );
       }
+      
+      for( auto *buffer : output_list )
+      {
+         buffer->send_signal( RBSignal::RBEOF );
+      }
+
       /** join threads **/
       for( auto *thread : thread_pool )
       {
@@ -434,6 +469,17 @@ public:
       }
       /** get info **/
       for( auto *buffer : buffer_list )
+      {
+#if MONITOR         
+         auto &monitor_data( buffer->getQueueData() );
+         Monitor::QueueData::print( monitor_data, Monitor::QueueData::MB, std::cerr, true );
+         std::cerr << "\n";
+#endif         
+         delete( buffer );
+         buffer = nullptr;
+      }
+      
+      for( auto *buffer : output_list )
       {
 #if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
@@ -520,47 +566,61 @@ protected:
    }
    
 
-   static void mult_thread_worker( PBuffer *buffer )
+   static void mult_thread_worker( PBuffer *buffer, OutputBuffer *output )
    {
+      assert( buffer != nullptr );
+      assert( output != nullptr );
       bool exit( false );
+      OutputValue< T > scratch;
       while( ! exit || buffer->size() > 0  )
       {
          /** consume data **/
          auto val( buffer->pop() );
+         scratch.index = val.output_index;
+
          for( size_t a_index( val.a_start ), b_index( val.b_start );
                a_index < val.a_end && b_index < val.b_end;
                   a_index++, b_index++ )
          {
-            val.output->matrix[ val.output_index ] +=
+            scratch.value +=
                val.a->matrix[ a_index ] *
                   val.b->matrix[ b_index ];
          }
+         output->push( scratch /** make a copy **/ );
          if( ! exit )
          {
             exit = ( buffer->get_signal() == RBSignal::RBEOF );
          }
+         scratch.value = 0;
       }
       return;
    }
 
-   template < class iterator_type >
-   static void mult_thread_consumer( PBuffer *buffer, iterator_type begin, iterator_type end )
+   static void mult_thread_consumer( std::array< OutputBuffer*, THREADS > &buffer,
+                                     Matrix< T > *output )
    {
       bool exit( false );
       bool empty( false );
       while( ! exit || ! empty )
       {
          empty = true;
-         for( auto it( begin ); it != end; ++it )
+         for( auto it( buffer.begin() ); it != buffer.end(); ++it )
          {
             /** start checking for data **/
             if( (*it)->size() > 0 )
             {
                empty = false;
                /** do something with the data **/
+               const auto data( (*it)->pop() );
+               output->matrix[ data.index ] = data.value;
+            }
+            if( ! exit )
+            {
+               exit = ( (*it)->get_signal() == RBSignal::RBEOF );
             }
          }
       }
+      return;
    }
 };
 #endif /* END _MATRIXOP_TCC_ */
