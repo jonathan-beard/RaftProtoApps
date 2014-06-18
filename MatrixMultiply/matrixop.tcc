@@ -33,7 +33,7 @@
 #include <functional>
 #include "ringbuffer.tcc"
 
-#define MONITOR      1
+//#define MONITOR      1
 #define PARALLEL     1
 
 
@@ -454,11 +454,11 @@ public:
       {
          buffer->send_signal( RBSignal::RBEOF );
       }
-      
-      for( auto *buffer : output_list )
-      {
-         buffer->send_signal( RBSignal::RBEOF );
-      }
+      //
+      //for( auto *buffer : output_list )
+      //{
+      //   buffer->send_signal( RBSignal::RBEOF );
+      //}
 
       /** join threads **/
       for( auto *thread : thread_pool )
@@ -572,10 +572,11 @@ protected:
       assert( output != nullptr );
       bool exit( false );
       OutputValue< T > scratch;
+      ParallelMatrixMult< T > val;
       while( ! exit || buffer->size() > 0  )
       {
          /** consume data **/
-         auto val( buffer->pop() );
+         buffer->pop( val );
          scratch.index = val.output_index;
 
          for( size_t a_index( val.a_start ), b_index( val.b_start );
@@ -593,6 +594,8 @@ protected:
          }
          scratch.value = 0;
       }
+      /** time to exit **/
+      output->send_signal( RBSignal::RBEOF );
       return;
    }
 
@@ -601,6 +604,7 @@ protected:
    {
       bool exit( false );
       bool empty( false );
+      OutputValue< T > data;
       while( ! exit || ! empty )
       {
          empty = true;
@@ -611,7 +615,7 @@ protected:
             {
                empty = false;
                /** do something with the data **/
-               const auto data( (*it)->pop() );
+               (*it)->pop( data );
                output->matrix[ data.index ] = data.value;
             }
             if( ! exit )
