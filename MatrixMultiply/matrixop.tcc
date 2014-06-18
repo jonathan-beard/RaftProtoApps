@@ -548,14 +548,17 @@ protected:
    {
       bool exit( false );
       bool empty( false );
-      while( !exit || !empty )
+      while( ! exit || ! empty )
       {
          empty = true;
          for( auto it( begin ); it != end; ++it )
          {
             /** start checking for data **/
-            if( (*it)->
-
+            if( (*it)->size() > 0 )
+            {
+               empty = false;
+               /** do something with the data **/
+            }
          }
       }
    }
