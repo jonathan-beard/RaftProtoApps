@@ -153,6 +153,19 @@ template< typename T > struct Matrix{
    }
 
 
+   bool operator == ( const Matrix< T > &other )
+   {
+      const auto size_this( sizeof( T ) * height * width );
+      const auto size_other( sizeof( T ) * other.height * other.width );
+      if( size_this != size_other ) 
+      {
+         return( false );
+      }
+      return( std::memcmp( (this)->matrix,
+                           other.matrix,
+                           size_this /* they're the same size */ ) == 0 );
+   }
+
    std::ostream& print( std::ostream &stream, Format format )
    {
       for( size_t row_index( 0 ); row_index < height; row_index++ )
@@ -368,16 +381,14 @@ public:
                index = (index + 1 ) % THREADS ;
             } while( buffer_list[ index ]->space_avail() == 0 );
             auto &mem( buffer_list[ index ]->allocate() );
-            
-            mem.a                            = a;
-            mem.a_start                      = a_row_index * a->width;
-            mem.a_end                        = (a_row_index * a->width ) + a->width;
-            mem.b                            = b_rotated;
-            mem.b_start                      = b_row_index * b_rotated->width;
-            mem.b_end                        = (b_row_index * b_rotated->width ) + a->width;
-            mem.output                       = output;
-            mem.output_index                 = output_index;
-
+            mem.a            = a;
+            mem.a_start      = a_row_index * a->width;
+            mem.a_end        = (a_row_index * a->width ) + a->width;
+            mem.b            = b_rotated;
+            mem.b_start      = b_row_index * b_rotated->width;
+            mem.b_end        = (b_row_index * b_rotated->width ) + a->width;
+            mem.output       = output;
+            mem.output_index = output_index;
             if( stop_index-- > THREADS )
             {
                buffer_list[ index ]->push();
@@ -526,13 +537,11 @@ protected:
                val.a->matrix[ a_index ] *
                   val.b->matrix[ b_index ];
          }
-         output->push( scratch /** make a copy **/ );
-         exit |= ( buffer->get_signal() == RBSignal::RBEOF );
+         const RBSignal &sig( buffer->get_signal() );
+         exit |= ( sig  == RBSignal::RBEOF );
+         output->push( scratch /** make a copy **/, sig );
          scratch.value = 0;
       }
-      /** time to exit **/
-      fprintf(stderr, "here\n");
-      output->send_signal( RBSignal::RBEOF );
       return;
    }
 
@@ -540,23 +549,24 @@ protected:
                                      Matrix< T > *output )
    {
       int sig_count( 0 );
+      bool empty( false );
       OutputValue< T > data;
-      while( true )
+      while( sig_count <  THREADS )
       {
+         empty = true;
          for( auto it( buffer.begin() ); it != buffer.end(); ++it )
          {
             if( (*it)->size() > 0 )
             {
+               empty = false;
                (*it)->pop( data );
                output->matrix[ data.index ] = data.value;
-            }
-            if((*it)->get_signal() == RBSignal::RBEOF )
-            {
-               sig_count++;
-               fprintf( stderr, "%d\n", sig_count );
+               if((*it)->get_signal() == RBSignal::RBEOF )
+               {
+                  sig_count++;
+               }
             }
          }
-         if( sig_count == THREADS ) return;
       }
    }
 };
