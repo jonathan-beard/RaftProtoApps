@@ -32,267 +32,12 @@
 #include <random>
 #include <functional>
 #include "ringbuffer.tcc"
+#include "ParallelMatrixMult.tcc"
+#include "Matrix.tcc"
 
 //#define MONITOR      1
 #define PARALLEL     1
 
-
-enum Format { CSV, SPACE };
-   
-
-template< typename T > struct Matrix{
-   
-   Matrix( size_t height, size_t width ) :   height( height ),
-                                             width( width )
-   {
-      matrix = new T[height * width]();
-      std::memset( matrix, 0, sizeof( T ) * height * width );
-   }
-
-   Matrix( const Matrix< T > &other ) : height( other.height ),
-                                         width(  other.width  )
-   {
-      matrix = new T[ height * width ]();
-      std::memcpy( matrix, 
-                   other.matrix, 
-                   sizeof( T ) * height * width );
-   }
-
-   template< size_t H, size_t W >
-   static
-      Matrix< T >* initFromArray( T input[H][W] )
-   {
-      Matrix< T > *output = new Matrix< T >( H, W );
-      size_t index( 0 );
-      for( size_t i( 0 ); i < H; i++ )
-      {
-         for( size_t j( 0 ); j < W; j++ )
-         {
-            output->matrix[ index++ ] = input[i][j];
-         }
-      }
-      return( output );
-   }
-  
-   
-
-
-   static Matrix< T >*
-   initFromFile( const std::string filename )
-   {
-      
-      std::ifstream input( filename );
-      if( input.is_open() )
-      {
-         std::vector< std::vector< T >* > temp_matrix;
-         std::string line;
-         size_t num_columns( 0 );
-         while( input.good() )
-         {
-            temp_matrix.push_back( new std::vector< T >() );
-            std::getline( input, line, '\n' );
-            std::istringstream iss( line );
-            std::string val;
-            while( iss.good() )
-            {
-               std::getline( iss, val, ',' );
-               std::istringstream conv( val );
-               T realval( 0 );
-               conv >> realval ;
-               temp_matrix.back()->push_back( realval );
-            }
-            if( num_columns == 0 )
-            {
-               num_columns = temp_matrix.back()->size();
-            }
-            else
-            {
-               if( temp_matrix.back()->size() != num_columns )
-               {
-                  std::cerr << 
-                     "Number of columns are not equal at row (" << 
-                     temp_matrix.size() << ").  Exiting!!\n";
-                  exit( EXIT_FAILURE );
-               }
-            }
-         }
-         input.close();
-         auto *output( new Matrix< T >( temp_matrix.size(), num_columns ) );
-         size_t index( 0 );
-         for( std::vector< T >* v : temp_matrix )
-         {
-            for( T ele : *v )
-            {
-               output->matrix[ index++ ] = ele;
-            }
-            delete( v );
-            v = nullptr;
-         }
-         return( output );
-      }
-      //TODO, probably should throw an exception
-      return( nullptr );
-   }
-
-   template< size_t H >
-   static
-      Matrix< T >* initFromArray( T input[H] )
-   {
-      Matrix< T > *output = new Matrix< T >( H, 1 );
-      size_t index( 0 );
-      for( size_t i( 0 ); i < H; i++ )
-      {
-         output->matrix[ index++ ] = input[ i ];
-      }
-      return( output );
-   }
-
-   virtual ~Matrix()
-   {
-      delete[]( matrix );
-   }
-
-
-   bool operator == ( const Matrix< T > &other )
-   {
-      const auto size_this( sizeof( T ) * height * width );
-      const auto size_other( sizeof( T ) * other.height * other.width );
-      if( size_this != size_other ) 
-      {
-         return( false );
-      }
-      return( std::memcmp( (this)->matrix,
-                           other.matrix,
-                           size_this /* they're the same size */ ) == 0 );
-   }
-
-   std::ostream& print( std::ostream &stream, Format format )
-   {
-      for( size_t row_index( 0 ); row_index < height; row_index++ )
-      {
-         for( size_t column_index( 0 ); column_index < width; column_index++ )
-         {
-            stream << matrix[ ( row_index * width ) + column_index ];
-            if( column_index != (width - 1 ) )
-            {
-               switch( format )
-               {
-                  case( SPACE ):
-                  {
-                     stream << " ";
-                  }
-                  break;
-                  case( CSV ):
-                  {
-                     stream << ",";
-                  }
-                  break;
-                  default:
-                     assert( false );
-                  break;
-               }
-            }
-         }
-         stream << "\n";
-      }
-      return( stream );
-   }
-
-   Matrix< T >* rotate()
-   {
-      if( width == 1 )
-      {
-         /* return copy */
-         Matrix< T > *output = new Matrix< T >( *this );
-         output->height = width;
-         output->width  = height;
-         return( output );
-      }
-      Matrix< T > *output = new Matrix< T >( width, height );
-      size_t output_index( 0 );
-      for( size_t column_index( 0 ); column_index < width; column_index++ )
-      {
-         for( size_t row_index( 0 ); row_index < height; row_index++ )
-         {
-            output->matrix[ output_index++ ] = 
-               matrix[ ( row_index * width ) + column_index ];
-         }
-      }
-      return( output );
-   }
-
-   
-   T *matrix;
-   size_t height;
-   size_t width;
-};
-   
-template< typename Type > struct ParallelMatrixMult 
-{
-   ParallelMatrixMult(  Matrix< Type >  *a, 
-                       const size_t a_start,
-                       const size_t a_end,
-                       Matrix< Type >  *b,
-                       const size_t b_start,
-                       const size_t b_end,
-                       Matrix< Type >  *output,
-                       const size_t output_index ) : a( a ),
-                                              a_start( a_start ),
-                                              a_end( a_end ),
-                                              b( b ),
-                                              b_start( b_start ),
-                                              b_end( b_end ),
-                                              output( output ),
-                                              output_index( output_index )
-   {
-      /** nothing to do here **/
-   }
-
-   ParallelMatrixMult( )           : a( nullptr ),
-                                     a_start( 0 ),
-                                     a_end( 0 ),
-                                     b( nullptr ),
-                                     b_start( 0 ),
-                                     b_end( 0 ),
-                                     output( nullptr ),
-                                     output_index( 0 )
-   {
-   }
-
-   ParallelMatrixMult( const ParallelMatrixMult<Type> &other ) :
-      a              ( other.a ),
-      a_start        ( other.a_start ),
-      a_end          ( other.a_end ),
-      b              ( other.b ),
-      b_start        ( other.b_start ),
-      b_end          ( other.b_end ),
-      output         ( other.output ),
-      output_index   ( other.output_index )
-   {}
-
-   ParallelMatrixMult< Type >&
-      operator =( const ParallelMatrixMult< Type > &other )
-   {
-      a              = other.a ;
-      a_start        = other.a_start ;
-      a_end          = other.a_end ;
-      b              = other.b ;
-      b_start        = other.b_start ;
-      b_end          = other.b_end ;
-      output         = other.output ;
-      output_index   = other.output_index ;
-      return( *this ); 
-   }
-   
-   Matrix< Type > *a;
-   size_t a_start;
-   size_t a_end;
-   Matrix< Type > *b;
-   size_t b_start;
-   size_t b_end;
-   Matrix< Type >  *output;
-   size_t output_index;
-};
 
 template < typename Type > struct  OutputValue
 {
@@ -335,6 +80,18 @@ public:
    typedef RingBuffer< OutputValue< T > >          OutputBuffer;
 #endif
    
+   /**
+    * multiply - takes in matrices a and b, stores the output
+    * in matrix "output."  Uses the number of threads specified
+    * in the class template parameter when referencing this static
+    * function.  The current implementation uses a relatively 
+    * naive dot product / blocking implementation, however this will
+    * slowly change once the transition to the Raft framework is 
+    * complete.
+    * @param   a, Matrix< T >*
+    * @param   b, Matrix< T >*
+    * @param   output, Matrix< T >* - must be of the correct dimensions
+    */
    static void multiply(   Matrix< T > *a, 
                            Matrix< T > *b,
                            Matrix< T > *output ) 
@@ -549,16 +306,13 @@ protected:
                                      Matrix< T > *output )
    {
       int sig_count( 0 );
-      bool empty( false );
       OutputValue< T > data;
       while( sig_count <  THREADS )
       {
-         empty = true;
          for( auto it( buffer.begin() ); it != buffer.end(); ++it )
          {
             if( (*it)->size() > 0 )
             {
-               empty = false;
                (*it)->pop( data );
                output->matrix[ data.index ] = data.value;
                if((*it)->get_signal() == RBSignal::RBEOF )

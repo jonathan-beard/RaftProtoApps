@@ -1,5 +1,5 @@
-CC     = gcc
-CXX    = g++
+CC     = clang
+CXX    = clang++
 
 
 include ../../simpleringbuffer/buffer.makefile
@@ -11,8 +11,8 @@ RT = -lrt
 STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-CFLAGS =     -O0 -Wall -std=c99	  -DRDTSCP=1 $(STATIC)
-CXXFLAGS =   -O0 -Wall -std=c++11 -DRDTSCP=1 $(STATIC) 
+CFLAGS =     -O3  -Wall -std=c99	  -DRDTSCP=1 
+CXXFLAGS =   -O3  -Wall -std=c++11 -DRDTSCP=1  
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom
@@ -36,7 +36,7 @@ EXE  = mmult
 
 compile: $(CXXFILES) $(CFILES)
 	$(MAKE) $(OBJS)
-	$(CXX) $(CXXFLAGS) $(INCS) $(OBJS) $(LIBS) -o $(EXE)
+	$(CXX) $(CXXFLAGS) $(STATIC) $(INCS) $(OBJS) $(LIBS) -o $(EXE)
 
 %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $(INCS) -o $@ $<
