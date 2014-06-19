@@ -35,7 +35,7 @@
 #include "ParallelMatrixMult.tcc"
 #include "Matrix.tcc"
 
-//#define MONITOR      1
+#define MONITOR      1
 #define PARALLEL     1
 
 
@@ -69,11 +69,11 @@ public:
    virtual ~MatrixOp() = delete;
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
-                       RingBufferType::Heap, 
+                       RingBufferType::Infinite, 
                        true >                      PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
-                       RingBufferType::Heap,
+                       RingBufferType::Infinite,
                        true >                      OutputBuffer;
 #else   
    typedef RingBuffer< ParallelMatrixMult< T > >   PBuffer;
