@@ -43,7 +43,7 @@ main( int argc, char **argv )
    auto *output = new Matrix< thetype_t >( A->height, x->width );
 
    const auto start_time( system_clock->getTime() );
-   MatrixOp< thetype_t, 1 >::multiply( A, x, output );
+   MatrixOp< thetype_t, 2 >::multiply( A, x, output );
    const auto end_time( system_clock->getTime() );
    std::cerr << ( end_time - start_time ) << "\n";
    //output->print( std::cout, Format::CSV );

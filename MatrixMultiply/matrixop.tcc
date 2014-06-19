@@ -158,15 +158,12 @@ public:
             output_index += b->width;
          }
       }
-      /**
-       * just in case a user specifies more threads than are
-       * used send asynchronous shutdown signal to rest of 
-       * threads through FIFO
-       */
-      //for( auto *buffer : buffer_list )
-      //{
-      //   buffer->send_signal( RBSignal::RBEOF );
-      //}
+#if MONITOR      
+      for( auto *buffer : buffer_list )
+      {
+         buffer->send_signal( RBSignal::TERM );
+      }
+#endif      
       /** join threads **/
       for( auto *thread : thread_pool )
       {
@@ -296,6 +293,9 @@ protected:
          const RBSignal &sig( buffer->get_signal() );
          exit |= ( sig  == RBSignal::RBEOF );
          output->push( scratch /** make a copy **/, sig );
+#if MONITOR         
+         if( sig == RBSignal::TERM ) return;
+#endif         
          scratch.value = 0;
       }
       return;
@@ -314,14 +314,20 @@ protected:
             {
                (*it)->pop( data );
                output->matrix[ data.index ] = data.value;
-               if((*it)->get_signal() == RBSignal::RBEOF )
-               {
-                  sig_count++;
-               }
             }
+            /* this way it'll respond to signals even if it has never received data */
+            if((*it)->get_signal() == RBSignal::RBEOF )
+            {
+               sig_count++;
+            }
+#if MONITOR            
+            if((*it)->get_signal() == RBSignal::TERM )
+            {
+               return;
+            }
+#endif
          }
       }
-      fprintf( stderr, "consumer exiting!!\n" );
    }
 };
 #endif /* END _MATRIXOP_TCC_ */
