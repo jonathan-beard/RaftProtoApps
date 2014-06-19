@@ -216,7 +216,7 @@ template< typename T > struct Matrix{
    
 template< typename Type > struct ParallelMatrixMult 
 {
-   ParallelMatrixMult( Matrix< Type >  *a, 
+   ParallelMatrixMult(  Matrix< Type >  *a, 
                        const size_t a_start,
                        const size_t a_end,
                        Matrix< Type >  *b,
@@ -230,26 +230,9 @@ template< typename Type > struct ParallelMatrixMult
                                               b_start( b_start ),
                                               b_end( b_end ),
                                               output( output ),
-                                              output_index( output_index ),
-                                              done( false )
+                                              output_index( output_index )
    {
       /** nothing to do here **/
-   }
-
-   /**
-    * dummy constructor to shutdown threads
-    */
-   ParallelMatrixMult( bool done ) : a( nullptr ),
-                                     a_start( 0 ),
-                                     a_end( 0 ),
-                                     b( nullptr ),
-                                     b_start( 0 ),
-                                     b_end( 0 ),
-                                     output( nullptr ),
-                                     output_index( 0 ),
-                                     done( done )
-   {
-      /* nothing to do here **/
    }
 
    ParallelMatrixMult( )           : a( nullptr ),
@@ -259,8 +242,7 @@ template< typename Type > struct ParallelMatrixMult
                                      b_start( 0 ),
                                      b_end( 0 ),
                                      output( nullptr ),
-                                     output_index( 0 ),
-                                     done( false )
+                                     output_index( 0 )
    {
    }
 
@@ -272,8 +254,7 @@ template< typename Type > struct ParallelMatrixMult
       b_start        ( other.b_start ),
       b_end          ( other.b_end ),
       output         ( other.output ),
-      output_index   ( other.output_index ),
-      done           ( other.done )
+      output_index   ( other.output_index )
    {}
 
    ParallelMatrixMult< Type >&
@@ -287,29 +268,9 @@ template< typename Type > struct ParallelMatrixMult
       b_end          = other.b_end ;
       output         = other.output ;
       output_index   = other.output_index ;
-      done           = other.done;
       return( *this ); 
    }
    
-   ParallelMatrixMult< Type >& 
-      operator =( ParallelMatrixMult< Type > &other )
-   {
-      a              = other.a ;
-      a_start        = other.a_start ;
-      a_end          = other.a_end ;
-      b              = other.b ;
-      b_start        = other.b_start ;
-      b_end          = other.b_end ;
-      output         = other.output ;
-      output_index   = other.output_index ;
-      done           = other.done;
-      return( *this ); 
-   }
-
-   ~ParallelMatrixMult()
-   {
-   }
-
    Matrix< Type > *a;
    size_t a_start;
    size_t a_end;
@@ -318,7 +279,6 @@ template< typename Type > struct ParallelMatrixMult
    size_t b_end;
    Matrix< Type >  *output;
    size_t output_index;
-   bool         done;
 };
 
 template < typename Type > struct  OutputValue
@@ -376,7 +336,7 @@ public:
          std::cerr << "Matrix a's width must equal matrix b's height.\n";
          return;
       }
-#ifdef PARALLEL
+      
       std::array< std::thread*, THREADS + 1 /* consumer thread */ > thread_pool;
       std::array< PBuffer*,      THREADS >    buffer_list;
       std::array< OutputBuffer*, THREADS >    output_list;
@@ -395,56 +355,41 @@ public:
                                                     std::ref( output_list ),
                                                     output );
       
-#endif
       Matrix< T > *b_rotated = b->rotate();
-#ifdef PARALLEL
       int64_t stop_index( b->height * b->width );
       uint32_t index( 0 );
-#endif
       for( size_t b_row_index( 0 ); 
             b_row_index < b_rotated->height; b_row_index++ )
       {
          size_t output_index( b_row_index );
          for( size_t a_row_index( 0 ); a_row_index < a->height; a_row_index++ )
          {
-#ifdef PARALLEL 
-           ParallelMatrixMult< T > job( 
-                        a                                        /* matrix a */,
-                        a_row_index * a->width                     /* a_start */,
-                       (a_row_index * a->width) + a->width          /* a_end   */,
-                        b_rotated                                 /* matrix b */,
-                        b_row_index * b_rotated->width            /* b_start  */,
-                       (b_row_index * b_rotated->width) + a->width /* b_end    */,
-                        output                                    /* output mat */,
-                        output_index                  /* self-explanatory */ );
             do{
                index = (index + 1 ) % THREADS ;
             } while( buffer_list[ index ]->space_avail() == 0 );
+            auto &mem( buffer_list[ index ]->allocate() );
+            
+            mem.a                            = a;
+            mem.a_start                      = a_row_index * a->width;
+            mem.a_end                        = (a_row_index * a->width ) + a->width;
+            mem.b                            = b_rotated;
+            mem.b_start                      = b_row_index * b_rotated->width;
+            mem.b_end                        = (b_row_index * b_rotated->width ) + a->width;
+            mem.output                       = output;
+            mem.output_index                 = output_index;
+
             if( stop_index-- > THREADS )
             {
-               buffer_list[ index ]->push( job );
+               buffer_list[ index ]->push();
             }
             else
             {
                /** go ahead and tell the threads we used to shutdown **/
-               buffer_list[ index ]->push( job, RBSignal::RBEOF );
+               buffer_list[ index ]->push( RBSignal::RBEOF );
             }
-#else
-            for( size_t a_column_index( 0 ), 
-               b_column_index( 0 ); a_column_index < a->width; 
-                  a_column_index++, b_column_index++ )
-            {
-               output->matrix[ output_index ] += 
-                  (a->matrix[ (a_row_index * a->width) + a_column_index ] *
-                              b_rotated->matrix[ 
-                                 (b_row_index * b_rotated->width) + 
-                                    b_column_index ] );
-            }
-#endif            
             output_index += b->width;
          }
       }
-#ifdef PARALLEL
       /**
        * just in case a user specifies more threads than are
        * used send asynchronous shutdown signal to rest of 
@@ -454,11 +399,6 @@ public:
       {
          buffer->send_signal( RBSignal::RBEOF );
       }
-      //
-      //for( auto *buffer : output_list )
-      //{
-      //   buffer->send_signal( RBSignal::RBEOF );
-      //}
 
       /** join threads **/
       for( auto *thread : thread_pool )
@@ -489,7 +429,6 @@ public:
          delete( buffer );
          buffer = nullptr;
       }
-#endif
       delete( b_rotated );
    }
 
@@ -603,24 +542,23 @@ protected:
                                      Matrix< T > *output )
    {
       bool exit( false );
-      bool empty( false );
       OutputValue< T > data;
-      while( ! exit || ! empty )
+      while( ! exit  )
       {
-         empty = true;
          for( auto it( buffer.begin() ); it != buffer.end(); ++it )
          {
             /** start checking for data **/
+            exit = true;
             if( (*it)->size() > 0 )
             {
-               empty = false;
                /** do something with the data **/
                (*it)->pop( data );
+               fprintf( stderr, "%ld\n", data.index );
                output->matrix[ data.index ] = data.value;
             }
-            if( ! exit )
+            if((*it)->get_signal() != RBSignal::RBEOF )
             {
-               exit = ( (*it)->get_signal() == RBSignal::RBEOF );
+               exit = false;
             }
          }
       }
