@@ -527,13 +527,11 @@ protected:
                   val.b->matrix[ b_index ];
          }
          output->push( scratch /** make a copy **/ );
-         if( ! exit )
-         {
-            exit = ( buffer->get_signal() == RBSignal::RBEOF );
-         }
+         exit |= ( buffer->get_signal() == RBSignal::RBEOF );
          scratch.value = 0;
       }
       /** time to exit **/
+      fprintf(stderr, "here\n");
       output->send_signal( RBSignal::RBEOF );
       return;
    }
@@ -541,28 +539,25 @@ protected:
    static void mult_thread_consumer( std::array< OutputBuffer*, THREADS > &buffer,
                                      Matrix< T > *output )
    {
-      bool exit( false );
+      int sig_count( 0 );
       OutputValue< T > data;
-      while( ! exit  )
+      while( true )
       {
          for( auto it( buffer.begin() ); it != buffer.end(); ++it )
          {
-            /** start checking for data **/
-            exit = true;
             if( (*it)->size() > 0 )
             {
-               /** do something with the data **/
                (*it)->pop( data );
-               fprintf( stderr, "%ld\n", data.index );
                output->matrix[ data.index ] = data.value;
             }
-            if((*it)->get_signal() != RBSignal::RBEOF )
+            if((*it)->get_signal() == RBSignal::RBEOF )
             {
-               exit = false;
+               sig_count++;
+               fprintf( stderr, "%d\n", sig_count );
             }
          }
+         if( sig_count == THREADS ) return;
       }
-      return;
    }
 };
 #endif /* END _MATRIXOP_TCC_ */
