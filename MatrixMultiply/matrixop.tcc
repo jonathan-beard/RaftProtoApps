@@ -124,7 +124,6 @@ public:
       thread_pool[ THREADS ] = new std::thread( mult_thread_consumer,
                                                     std::ref( output_list ),
                                                     output );
-      
       Matrix< T > *b_rotated = b->rotate();
       int64_t stop_index( b->height * b->width );
       uint32_t index( 0 );
@@ -134,9 +133,7 @@ public:
          size_t output_index( b_row_index );
          for( size_t a_row_index( 0 ); a_row_index < a->height; a_row_index++ )
          {
-            do{
-               index = (index + 1 ) % THREADS ;
-            } while( buffer_list[ index ]->space_avail() == 0 );
+            index = (index + 1 ) % THREADS ;
             auto &mem( buffer_list[ index ]->allocate() );
             mem.a            = a;
             mem.a_start      = a_row_index * a->width;
@@ -158,12 +155,7 @@ public:
             output_index += b->width;
          }
       }
-#if MONITOR      
-      for( auto *buffer : buffer_list )
-      {
-         buffer->send_signal( RBSignal::TERM );
-      }
-#endif      
+      
       /** join threads **/
       for( auto *thread : thread_pool )
       {
@@ -273,13 +265,14 @@ protected:
    {
       assert( buffer != nullptr );
       assert( output != nullptr );
-      bool exit( false );
-      OutputValue< T > scratch;
       ParallelMatrixMult< T > val;
-      while( ! exit || buffer->size() > 0  )
+      RBSignal sig( RBSignal::NONE );
+      while( sig != RBSignal::RBEOF )
       {
          /** consume data **/
-         buffer->pop( val );
+         buffer->pop( val, &sig );
+
+         OutputValue< T > &scratch( output->allocate() );
          scratch.index = val.output_index;
 
          for( size_t a_index( val.a_start ), b_index( val.b_start );
@@ -290,12 +283,7 @@ protected:
                val.a->matrix[ a_index ] *
                   val.b->matrix[ b_index ];
          }
-         const RBSignal &sig( buffer->get_signal() );
-         exit |= ( sig  == RBSignal::RBEOF );
-         output->push( scratch /** make a copy **/, sig );
-#if MONITOR         
-         if( sig == RBSignal::TERM ) return;
-#endif         
+         output->push( sig );
          scratch.value = 0;
       }
       return;
@@ -306,6 +294,7 @@ protected:
    {
       int sig_count( 0 );
       OutputValue< T > data;
+      RBSignal sig( RBSignal::NONE );
       /** TODO, change THREADS to used threads so that buffers
        *  that aren't used will still be terminated 
        */
@@ -315,21 +304,16 @@ protected:
          {
             if( (*it)->size() > 0 )
             {
-               (*it)->pop( data );
+               (*it)->pop( data, &sig );
                output->matrix[ data.index ] = data.value;
-               if((*it)->get_signal() == RBSignal::RBEOF )
+               if( sig == RBSignal::RBEOF )
                {
                   sig_count++;
                }
             }
-#if MONITOR            
-            if((*it)->get_signal() == RBSignal::TERM )
-            {
-               return;
-            }
-#endif
          }
       }
+      return;
    }
 };
 #endif /* END _MATRIXOP_TCC_ */

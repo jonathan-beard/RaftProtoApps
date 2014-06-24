@@ -25,16 +25,16 @@
 
 Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
 
-typedef double thetype_t;
+typedef float thetype_t;
 
 int
 main( int argc, char **argv )
 {
    
    
-   //const std::string filename( "randomarray.csv" );
+   const std::string filename( "randomarray.csv" );
    //const std::string filename( "intmatrix100_100.csv" );
-   const std::string filename( "supersmall.csv" );
+   //const std::string filename( "supersmall.csv" );
 
    auto *A = Matrix< thetype_t >::initFromFile( filename );
    
@@ -43,7 +43,7 @@ main( int argc, char **argv )
    auto *output = new Matrix< thetype_t >( A->height, x->width );
 
    const auto start_time( system_clock->getTime() );
-   MatrixOp< thetype_t, 2>::multiply( A, x, output );
+   MatrixOp< thetype_t, 6 >::multiply( A, x, output );
    const auto end_time( system_clock->getTime() );
    std::cerr << ( end_time - start_time ) << "\n";
    output->print( std::cout, Format::CSV );
