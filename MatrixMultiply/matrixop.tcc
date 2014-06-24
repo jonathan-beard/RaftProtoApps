@@ -302,7 +302,7 @@ protected:
       {
          for( auto it( buffer.begin() ); it != buffer.end(); ++it )
          {
-            if( (*it)->size() > 0 )
+            if((*it)->size() > 0 )
             {
                (*it)->pop( data, &sig );
                output->matrix[ data.index ] = data.value;
