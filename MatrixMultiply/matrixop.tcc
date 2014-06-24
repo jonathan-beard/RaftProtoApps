@@ -35,8 +35,7 @@
 #include "ParallelMatrixMult.tcc"
 #include "Matrix.tcc"
 
-//#define MONITOR      1
-#define PARALLEL     1
+#define MONITOR      1
 
 
 template < typename Type > struct  OutputValue
@@ -75,6 +74,7 @@ public:
    typedef RingBuffer< OutputValue< T >,
                        RingBufferType::Infinite,
                        true >                      OutputBuffer;
+
 #else   
    typedef RingBuffer< ParallelMatrixMult< T > >   PBuffer;
    typedef RingBuffer< OutputValue< T > >          OutputBuffer;
