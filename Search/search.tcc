@@ -31,65 +31,62 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 1007
-
-struct Line
+#define CHUNKSIZE 65536
+struct Chunk
 {
-   Line() : line_no( 0 ),
-            start_position( 0 ),
-            length( 0 )
+   Chunk() : start_position( 0 ),
+             length( 0 )
    {
-      std::memset( line_chunk, '\0', CHUNKSIZE ); 
+      std::memset( chunk, '\0', CHUNKSIZE ); 
    }
 
-   Line( const Line &other ) : line_no( other.line_no ),
-                               start_position( other.start_position ),
-                               length( other.length )
+   Chunk( const Chunk &other ) : start_position( other.start_position ),
+                                 length( other.length )
    {
-      std::strncpy( line_chunk, other.line_chunk, CHUNKSIZE );
+      std::strncpy( chunk, other.chunk, CHUNKSIZE );
    }
 
-   void operator = ( const Line &other )
+   void operator = ( const Chunk &other )
    {
-      line_no        = other.line_no;
       start_position = other.start_position;
       length         = other.length;
-      std::strncpy( line_chunk, other.line_chunk, CHUNKSIZE );
+      std::strncpy( chunk, other.chunk, CHUNKSIZE );
    }
 
-   size_t line_no;
    size_t start_position;
    size_t length;
-   char   line_chunk[ CHUNKSIZE ];
+   char   chunk[ CHUNKSIZE ];
 };
 
 struct Hit
 {
-   Hit() : line_no( 0 ),
-           position( 0 )
+   Hit() : position( 0 ),
+           pattern_index( 0 )
    {
    }
 
-   Hit( const Hit &other ) : line_no( other.line_no ),
-                             position( other.position )
+   Hit( const Hit &other ) : position( other.position ),
+                             pattern_index( other.pattern_index )
    {
 
    }
 
    void operator = (const Hit &other )
    {
-      line_no  = other.line_no;
       position = other.position;
+      pattern_index = other.pattern_index;
    }
 
-   size_t line_no;
    size_t position;
+   size_t pattern_index;
 };
 
 typedef RingBuffer< Line > InputBuffer;
 typedef RingBuffer< Hit  > OutputBuffer;
 
-template < SearchAlgorithm algorithm, size_t THREADS, size_t BUFFSIZE = 100 > class Search
+template < SearchAlgorithm algorithm, 
+           size_t THREADS, 
+           size_t BUFFSIZE = 100 > class Search
 {
 public:
    Search()          = delete;
@@ -118,21 +115,25 @@ public:
                                                 std::ref( output_buffer ),
                                                 std::ref( hits ) )
 
+      /**
+       * get longest search term 
+       */
+      const size_t m( 0 );
+      for( const std::string &str : search_terms )
+      {
+         const auto l( str.length() );
+         if( m < l )
+         {
+            m = l;
+         }
+      }
+      
       std::function< void( InputBuffer*, OutputBuffer* ) > worker_function;
       switch( algorithm )
       {
          case( RabinKarp ):
          {
             const auto prime_number( 3571 );
-            auto rk_hash = [&]( const char *src, size_t len )
-            {  
-               uint64_t output( 0 );
-               while( len )
-               {
-                  output += src[ len ] * std::pow( prime_number, len );
-                  len--;
-               }
-            };
             auto rkfunction = [&]( Line &line, std::vector< Hit > &hits )
             {
                 
@@ -146,7 +147,11 @@ public:
             {
                
             };
-            worker_function = std::bind( worker_function_base, _1, _2, std::ref( kmpfunction ) );
+            worker_function = 
+               std::bind( worker_function_base, 
+                          _1, 
+                          _2, 
+                          std::ref( kmpfunction ) );
          }
          break;
          case( Automata ):
@@ -155,24 +160,50 @@ public:
             {
                
             };
-            worker_function = std::bind( worker_function_base, _1, _2, std::ref( atfunction ) );
+            worker_function = 
+               std::bind( worker_function_base, _1, _2, std::ref( atfunction ) );
          }
          break;
          default:
             assert( false );
       }
+      
+      /** get input file **/
+      std::ifstream file_input( filename, std::ifstream::binary );
+      if( ! file_input.is_open() )
+      {
+         std::cerr << "Failed to open input file: " << filename << "\n";
+         exit( EXIT_FAILURE );
+      }
+      
+      /** get file size **/
+      file_input
       for( size_t thread_id( 0 ); thread_id < THREADS; thread_id++ )
       {
          thread_pool[ thread_id ] = new std::thread( worker_function,
                                                      input_buffer[  thread_id ],
                                                      output_buffer[ thread_id ] );
       }
+   
+      size_t output_stream( 0 );
+      while( file_input.good() )
+      {
+         auto *buffer( input_buffer[ output_stream ] );
+         Line &line( buffer->allocate() );
+         input_file.read( line.line_chunk );
+         output_stream = ( output_stream + 1 ) % THREADS;
+      }
+      
+      file_input.close();
    }
 private:
 
    static void worker_function_base( InputBuffer *input, 
                                      OutputBuffer *output,
-                                     std::function< void ( Line&, std::vector< Hit >& ) > search_function )
+                                     std::function< 
+                                     void ( Line&, 
+                                            std::vector< Hit >& ) > 
+                                             search_function )
    {
       assert( input != nullptr );
       assert( output != nullptr );
@@ -180,38 +211,16 @@ private:
       std::vector< Hit > local_hits;
       bool has_data( false );
       Line line;
-      RBSignal &sig( buffer->get_signal() );
-      while( ! exit || ( has_data = buffer->size() > 0 ) )
+      RBSignal signal( RBSignal::NONE );
+      while( signal != RBSignal::RBEOF )
       {
-         if( has_data )
+         input->pop( line, &signal );
+         search_function( line, local_hits );
+         if( local_hits.size() > 0 )
          {
-            input->pop( line );
-            search_function( line, local_hits );
-            sig = buffer->get_signal();
-            if( local_hits.size() > 0 )
-            {
-               for( auto it( local_hits.begin() ); it != local_hits.end(); ++it )
-               {
-                  
-                  if( it == ( local_hits.end() - 1 ) )
-                  {
-                     /** pass signal **/
-                     output->push( (*it), sig );
-                  }
-                  else
-                  {
-                     output->push( (*it) );
-                  }
-               }
-               local_hits.clear();
-            }
-            else
-            {
-               /** no hits, pass signal on **/
-               output->send_signal( sig );
-            }
+            output->insert( local_hits.begin(), local_hits.end(), signal );
+            local_hits.clear();
          }
-         exit |= (sig == RBSignal::RBEOF );
       }
    }
 
