@@ -35,7 +35,7 @@
 #include "ParallelMatrixMult.tcc"
 #include "Matrix.tcc"
 
-#define MONITOR      1
+//#define MONITOR      1
 #define PARALLEL     1
 
 
@@ -306,6 +306,9 @@ protected:
    {
       int sig_count( 0 );
       OutputValue< T > data;
+      /** TODO, change THREADS to used threads so that buffers
+       *  that aren't used will still be terminated 
+       */
       while( sig_count <  THREADS )
       {
          for( auto it( buffer.begin() ); it != buffer.end(); ++it )
@@ -314,11 +317,10 @@ protected:
             {
                (*it)->pop( data );
                output->matrix[ data.index ] = data.value;
-            }
-            /* this way it'll respond to signals even if it has never received data */
-            if((*it)->get_signal() == RBSignal::RBEOF )
-            {
-               sig_count++;
+               if((*it)->get_signal() == RBSignal::RBEOF )
+               {
+                  sig_count++;
+               }
             }
 #if MONITOR            
             if((*it)->get_signal() == RBSignal::TERM )
