@@ -23,6 +23,7 @@
 #include <cstring>
 #include <vector>
 #include <functional>
+#include <cmath>
 
 enum SearchAlgorithm 
 { 
@@ -115,36 +116,6 @@ public:
                                                 std::ref( output_buffer ),
                                                 std::ref( hits ) )
 
-      /**
-       * get longest search term 
-       */
-      const size_t m( 0 );
-      for( const std::string &str : search_terms )
-      {
-         const auto l( str.length() );
-         if( m < l )
-         {
-            m = l;
-         }
-      }
-      
-      std::function< void( InputBuffer*, OutputBuffer* ) > worker_function;
-      switch( algorithm )
-      {
-         case( RabinKarp ):
-         {
-            const auto prime_number( 3571 );
-            auto rkfunction = [&]( Line &line, std::vector< Hit > &hits )
-            {
-                
-            };
-            worker_function = std::bind( worker_function_base, _1, _2, std::ref( rkfunction ) );
-         }
-         break;
-         default:
-            assert( false );
-      }
-      
       /** get input file **/
       std::ifstream file_input( filename, std::ifstream::binary );
       if( ! file_input.is_open() )
@@ -152,9 +123,57 @@ public:
          std::cerr << "Failed to open input file: " << filename << "\n";
          exit( EXIT_FAILURE );
       }
+     
+      /** declare iterations, needed to send stop signal **/
+      size_t iterations( 0 );
+
+      /** declare the worker thread function **/
+      std::function< void( InputBuffer*, OutputBuffer* ) > worker_function;
+      switch( algorithm )
+      {
+         case( RabinKarp ):
+         {
+            /**
+             * get longest search term 
+             */
+            size_t m( 0 );
+            for( const std::string &str : search_terms )
+            {
+               const auto l( str.length() );
+               if( m < l )
+               {
+                  m = l;
+               }
+            }
+            m -= 1;
+            /**
+             * get file length 
+             */
+            is.seekg( 0, is.end );
+            const auto file_length( is.tellg() );
+            is.seekg( 0, is.beg );
+
+            /** 
+             * calculate number of iterations needed to cover
+             * entire file
+             */
+            iterations =  
+               std::round( (double) length / (double)( CHUNKSIZE - m - 2 ) );
+
+            
+            auto rkfunction = [&]( Line &line, std::vector< Hit > &hits )
+            {
+                    
+            };
+            worker_function = 
+               std::bind( worker_function_base, _1, _2, std::ref( rkfunction ) );
+         }
+         break;
+         default:
+            assert( false );
+      }
       
-      /** get file size **/
-      file_input
+      
       for( size_t thread_id( 0 ); thread_id < THREADS; thread_id++ )
       {
          thread_pool[ thread_id ] = new std::thread( worker_function,
