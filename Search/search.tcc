@@ -141,29 +141,6 @@ public:
             worker_function = std::bind( worker_function_base, _1, _2, std::ref( rkfunction ) );
          }
          break;
-         case( KnuthMorrisPratt ):
-         {
-            auto kmpfunction = []( Line &line, std::vector< Hit > &hits )
-            {
-               
-            };
-            worker_function = 
-               std::bind( worker_function_base, 
-                          _1, 
-                          _2, 
-                          std::ref( kmpfunction ) );
-         }
-         break;
-         case( Automata ):
-         {
-            auto atfunction = []( Line &line, std::vector< Hit > &hits )
-            {
-               
-            };
-            worker_function = 
-               std::bind( worker_function_base, _1, _2, std::ref( atfunction ) );
-         }
-         break;
          default:
             assert( false );
       }
