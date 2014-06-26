@@ -159,11 +159,47 @@ public:
              */
             iterations =  
                std::round( (double) length / (double)( CHUNKSIZE - m - 2 ) );
-
             
+            const uint64_t q( 17 );
+            const uint64_t d( 0xff );
+            /**
+             * h - max radix power to subtract off in rolling hash
+             */
+            std::vector< uint64_t > h( search_terms.length(), 1);
+            /**
+             * hash_function - used to compute initial hashes
+             * for pattern values "p"
+             * @param - line, full line to be hashed
+             * @param - length, length from start ( 0 ) to be 
+             * hashed.  It is assumed that this function is only
+             * used for the starts of lines.
+             */
+            auto hash_function = [&]( const std::string line, 
+                                      const size_t      length )
+            {
+               uint64_t t( 0 );
+               for( size_t i( 0 ); i < length; i++ )
+               {
+                  t = ( ( t * d ) + line[ i ] ) % q;
+               }
+               return( t );
+            }
+            /**
+             * p - pattern hash value, only computed once and read
+             * only after that
+             */
+            std::vector< uint64_t > p( search_terms.length(), 0 );
+            for( const std::string &str :  search_terms )
+            {
+               
+            }
+            /**
+             * compute initial hashes for each search term
+             */
+
             auto rkfunction = [&]( Line &line, std::vector< Hit > &hits )
             {
-                    
+               /** re-start hash **/ 
             };
             worker_function = 
                std::bind( worker_function_base, _1, _2, std::ref( rkfunction ) );
