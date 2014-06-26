@@ -24,6 +24,12 @@
 #include <vector>
 #include <functional>
 #include <cmath>
+#include <sstream>
+#include <fstream>
+#include <thread>
+#include <utility>
+
+#include "ringbuffer.tcc"
 
 enum SearchAlgorithm 
 { 
@@ -32,7 +38,8 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 65536
+#define CHUNKSIZE 100
+
 struct Chunk
 {
    Chunk() : start_position( 0 ),
@@ -66,6 +73,12 @@ struct Hit
    {
    }
 
+   Hit( size_t position,
+        size_t pattern_index ) : position( position ),
+                                 pattern_index( pattern_index )
+   {
+   }
+
    Hit( const Hit &other ) : position( other.position ),
                              pattern_index( other.pattern_index )
    {
@@ -78,21 +91,27 @@ struct Hit
       pattern_index = other.pattern_index;
    }
 
+   static std::string get_string( const Hit &hit )
+   {
+      std::stringstream ss;
+      ss << "Position: " << hit.position << "Pattern #: " << hit.pattern_index;
+      return( ss.str() );
+   }
    size_t position;
    size_t pattern_index;
 };
 
-typedef RingBuffer< Line > InputBuffer;
-typedef RingBuffer< Hit  > OutputBuffer;
+typedef RingBuffer< Chunk > InputBuffer;
+typedef RingBuffer< Hit   > OutputBuffer;
 
-template < SearchAlgorithm algorithm, 
-           size_t THREADS, 
+template < size_t THREADS, 
            size_t BUFFSIZE = 100 > class Search
 {
 public:
    Search()          = delete;
    virtual ~Search() = delete;
-
+   
+   template< SearchAlgorithm algorithm >
    static void search( const std::string           filename,
                        std::vector< std::string >  &search_terms,
                        std::vector< std::string >  &hits )
@@ -106,15 +125,14 @@ public:
       /** allocate buffers **/
       for( size_t buff_id( 0 ); buff_id < THREADS; buff_id++ )
       {
-         input_buffers[  buff_id ] = new InputBuffer( BUFFSIZE );
-         output_buffers[ buff_id ] = new OutputBuffer( BUFFSIZE );
+         input_buffer  [  buff_id ] = new InputBuffer( BUFFSIZE );
+         output_buffer [ buff_id  ] = new OutputBuffer( BUFFSIZE );
       }
-      /** allocate a place to store the matches **/
-      std::vector< Hit > hits;
+      
       /** allocate consumer thread **/
       thread_pool[ THREADS ] = new std::thread( consumer_function,
                                                 std::ref( output_buffer ),
-                                                std::ref( hits ) )
+                                                std::ref( hits ) );
 
       /** get input file **/
       std::ifstream file_input( filename, std::ifstream::binary );
@@ -126,46 +144,47 @@ public:
      
       /** declare iterations, needed to send stop signal **/
       size_t iterations( 0 );
+      /**
+       * get longest & smallest search term 
+       */
+      uint64_t largest_p( 0 );
+      uint64_t smallest_p( INT64_MAX );
+      for( const std::string &str : search_terms )
+      {
+         const auto temp( str.length() );
+         if( largest_p < temp )
+         {
+            largest_p = temp;
+         }
+         if( smallest_p > temp )
+         {
+            smallest_p = temp;
+         }
+      }
+      
+      /**
+       * get file length 
+       */
+      file_input.seekg( 0, file_input.end );
+      const auto file_length( file_input.tellg() );
+      file_input.seekg( 0, file_input.beg );
 
       /** declare the worker thread function **/
       std::function< void( InputBuffer*, OutputBuffer* ) > worker_function;
+      uint64_t *m( nullptr );
       switch( algorithm )
       {
          case( RabinKarp ):
          {
-            /**
-             * get longest & smallest search term 
-             */
-            uint64_t largest_p( 0 );
-            uint64_t smallest_p( INT64_MAX );
-            for( const std::string &str : search_terms )
-            {
-               const auto temp( str.length() );
-               if( largest_p < temp )
-               {
-                  largest_p = temp;
-               }
-               if( smallest_p > temp )
-               {
-                  smallest_p = temp;
-               }
-            }
-            
-            /**
-             * get file length 
-             */
-            is.seekg( 0, is.end );
-            const auto file_length( is.tellg() );
-            is.seekg( 0, is.beg );
 
             /** 
              * calculate number of iterations needed to cover
-             * entire file, last 2 is 2 b/c we need to subtract
-             * one for the null term and another one for the single
-             * byte overlap at the end of the chunk
+             * entire file, last 1 is 2 b/c we need to subtract
+             * one for the single byte overlap at the end of 
+             * the chunk
              */
             iterations =  
-               std::round( (double) length / (double)( CHUNKSIZE - largest_p - 2 ) );
+               std::round( (double) file_length / (double)( CHUNKSIZE - largest_p - 1 ) );
             
             const uint64_t q( 17 );
             const uint64_t d( 0xff );
@@ -186,35 +205,46 @@ public:
                   t = ( ( t * d ) + line[ i ] ) % q;
                }
                return( t );
-            }
+            };
+            /** store this since it'll be used quite a bit **/
+            const auto n_patterns( search_terms.size() );
             
+
             auto compute_constant_data = [&](){
-               /**
-                * h - max radix power to subtract off in rolling hash
-                */
-               std::vector< uint64_t > h( search_terms.length(), 1);
-               /**
-                * p - pattern hash value, only computed once and read
-                * only after that
-                */
-               std::vector< uint64_t > p( search_terms.length(), 0 );
-               for( auto i( 0 ); i < search_terms.length(); i++ )
+               std::vector< uint64_t > p( n_patterns, 0 );
+               std::vector< uint64_t > h( n_patterns, 1 );
+               for( auto i( 0 ); i < n_patterns; i++ )
                {
                   const auto pattern( search_terms[ i ] );
                   p[ i ] = hash_function( pattern, pattern.length() ); 
-                  for( auto j( 1 ); j < search_terms.length(); j++ )
+                  for( auto j( 1 ); j < n_patterns; j++ )
                   {
-                     h[ i ] = ( h[ i ]* d ) % prime;
+                     h[ i ] = ( h[ i ] * d ) % q;
                   }
                }
                return( std::make_pair( h, p ) );
             };
             const auto constant_data( compute_constant_data() );
+            /**
+             * h - max radix power to subtract off in rolling hash
+             */
             const auto h( constant_data.first );
+            /**
+             * p - pattern hash value, only computed once and read
+             * only after that
+             */
             const auto p( constant_data.second );
-            const auto n_patterns( search_terms.size() );
+            /** 
+             * NOTE: if there are more than a few queries then might be 
+             * more efficient to return a pointer.
+             */
+            m = new uint64_t[ n_patterns ]();
+            for( size_t i( 0 ); i < n_patterns; i++ )
+            {
+               m[ i ] =  search_terms[ i ].length();
+            }
 
-            auto rkfunction = [&]( Line &line, std::vector< Hit* > &hits )
+            auto rkfunction = [&]( Chunk &chunk, std::vector< Hit > &hits )
             {
                /**
                 * here's the game plan: 
@@ -234,28 +264,44 @@ public:
                 * faster to just keep |search_terms| hash values for each 
                 * pattern.
                 */
-               std::vector< uint64_t > t( n_patterns, 0 );
+               uint64_t *t = new uint64_t[ n_patterns ];
                for( auto pattern( 0 ); pattern < n_patterns; pattern++ )
                {
-                  t[ pattern ] = hash_function( line.chunk, 
+                  t[ pattern ] = hash_function( chunk.chunk, 
                                                 search_terms[ pattern ].length() );
                }
+               /** temp value for use below **/
+               Hit temp;
+               /** increment var for do loop below **/
                size_t s( 0 );
                do{
                   for( auto p_index( 0 ); p_index < search_terms.size(); p_index++ )
                   {
-                     if( p[ p_index ] == t[ p_index ] )
+                     if( s <= ( CHUNKSIZE - m[ p_index ] /* pattern length */ ) )
                      {
-                        hits.push_back( new Hit( s + line.start_position,
-                                                 p_index ) );
+                        if( p[ p_index ] == t[ p_index ] )
+                        {
+                           temp.position      = s + chunk.start_position;
+                           temp.pattern_index = p_index;
+                           hits.push_back( temp /* make copy */ );
+                        }
+                        /** calculate new offsets for t[ p_index ] **/
+                        const auto remove_val( ( chunk.chunk[ s ] * h[ p_index ] ) % q );
+                        t[ p_index ] = ( t[ p_index ] - remove_val ) % q;
+                        t[ p_index ] = ( d * t[ p_index ] ) % q;
+                        t[ p_index ] = ( t[ p_index ] + chunk.chunk[ s + m[ p_index ] ] ) % q;
                      }
                   }
-                  /** calculate new offsets for t **/
-
-               }while( s < = ( CHUNKSIZE - 1 /* null term */ - smallest_p ) );
+                  s++;
+                  /** stop when we're at the end of the smallest pattern **/
+               }while( s <= ( CHUNKSIZE - smallest_p ) );
+               delete[]( t );
             };
             worker_function = 
-               std::bind( worker_function_base, _1, _2, std::ref( rkfunction ) );
+               std::bind( worker_function_base, 
+                          std::placeholders::_1, 
+                          std::placeholders::_2, 
+                          std::ref( rkfunction ) );
          }
          break;
          default:
@@ -273,12 +319,42 @@ public:
       size_t output_stream( 0 );
       while( file_input.good() )
       {
-         auto *buffer( input_buffer[ output_stream ] );
-         Line &line( buffer->allocate() );
-         input_file.read( line.line_chunk );
+         /** input stream with reference to the worker thread **/
+         auto *input_stream( input_buffer[ output_stream ] );
+         Chunk &chunk( input_stream->allocate() );
+         chunk.start_position = file_input.tellg();
+         file_input.read( chunk.chunk, CHUNKSIZE );
+         chunk.length = ( size_t )file_input.gcount();
+         input_stream->push( ( --iterations > THREADS ? RBSignal::NONE : RBSignal::RBEOF ) );
+         file_input.seekg( (size_t) file_input.tellg() - largest_p + 1 );
          output_stream = ( output_stream + 1 ) % THREADS;
       }
       
+      /** end of file, wait for results **/
+      for( std::thread *th : thread_pool )
+      {
+         th->join();
+         delete( th );
+         th = nullptr;
+      }
+
+      for( InputBuffer *buff : input_buffer )
+      {
+         delete( buff );
+         buff = nullptr;
+      }
+
+      for( OutputBuffer *buff : output_buffer )
+      {
+         delete( buff );
+         buff = nullptr;
+      }
+      
+      if( m != nullptr ) 
+      { 
+         delete[]( m );
+         m = nullptr;
+      }
       file_input.close();
    }
 private:
@@ -286,33 +362,50 @@ private:
    static void worker_function_base( InputBuffer *input, 
                                      OutputBuffer *output,
                                      std::function< 
-                                     void ( Line&, 
+                                     void ( Chunk&, 
                                             std::vector< Hit >& ) > 
                                              search_function )
    {
       assert( input != nullptr );
       assert( output != nullptr );
-      bool exit( false );
       std::vector< Hit > local_hits;
-      bool has_data( false );
-      Line line;
+      Chunk chunk;
       RBSignal signal( RBSignal::NONE );
       while( signal != RBSignal::RBEOF )
       {
-         input->pop( line, &signal );
-         search_function( line, local_hits );
+         input->pop( chunk, &signal );
+         search_function( chunk, local_hits );
          if( local_hits.size() > 0 )
          {
             output->insert( local_hits.begin(), local_hits.end(), signal );
             local_hits.clear();
          }
       }
+      /** TODO - implement way to shutdown threads when there are no hits **/
    }
 
    static void consumer_function( std::array< OutputBuffer*, THREADS > &input,
-                                  std::vector< Hit >                   &hits )
+                                  std::vector< std::string >           &hits )
    {
-
+      int sig_count( 0 );
+      Hit hit;
+      RBSignal sig( RBSignal::NONE );
+      while( sig_count < THREADS )
+      {
+         for( auto *buff : input )
+         {
+            if( buff->size() > 0 )
+            {
+               buff->pop( hit, &sig );
+               hits.push_back( Hit::get_string( hit ) );
+               if( sig == RBSignal::RBEOF )
+               {
+                  sig_count++;
+               }
+            }
+         }
+      }
+      return;
    }
 };
 #endif /* END _SEARCH_TCC_ */

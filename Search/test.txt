@@ -1,0 +1,271 @@
+\documentclass[pdftex,10pt, letterpaper, notitlepage]{article}
+\usepackage[margin=2.54cm,pdftex]{geometry}
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{algorithmic}
+\usepackage{program}
+\usepackage{float}
+\usepackage[english]{babel}
+\usepackage{pifont}
+\usepackage{multicol}
+\DeclareGraphicsExtensions{.png,.jpg}
+\begin{document}
+\begin{center}
+\begin{minipage}{.5\textwidth}
+\begin{flushleft}
+\textsc{Homework 4: Advanced Architecture\\CSE 560M - Fall 2011}
+\end{flushleft}
+\end{minipage}
+\begin{minipage}{.4\textwidth}
+\begin{flushright}
+\textsc{Jonathan Beard\\}
+\href{mailto:jbeard@wustl.edu}{jbeard@wustl.edu}\\
+\textsc{Joe Wingbermuehle\\}
+\href{mailto:wingbej@wustl.edu}{wingbej@wustl.edu}\\
+\today
+\end{flushright}
+\end{minipage}
+
+\end{center}
+
+\hrulefill
+\begin{enumerate}
+\item Register Renaming\ \\
+\begin{center}
+\begin{tabular}{|p{1cm}|c|c|c|}
+\hline
+   & Original Insns & Renamed Insns & Overwritten Reg \\ 
+\hline
+\hline
+1  & xor r1, r2 \ding{222} r3 & xor p1, p2 \ding{222} p5 & [ p3 ]\\
+\hline
+2  & add r3, r4 \ding{222} r4 & add p5, p4 \ding{222} p6 & [ p4 ]\\
+\hline
+3  & beqz NEXT, r2 & beqz NEXT, p2 &   [ ]\\
+\hline
+4  & sub r1, r3 \ding{222} r2 & sub p1, p5 \ding{222} p7 & [ p2 ] \\
+\hline
+5  & addi r1, 1 \ding{222} r4 & addi p1, 1 \ding{222} p8 & [ p6 ]\\
+\hline
+6  & mult r4, r3 \ding{222} r1 & mul p8, p5 \ding{222} ? & stall \\
+\hline
+\end{tabular}
+\end{center}
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\multicolumn{2}{|c|}{Map Table} \\
+\hline
+r1 & p1\\
+r2 & p7\\
+r3 & p5\\
+r4 & p8\\
+\hline
+\end{tabular}
+\end{center}
+\item Virtual Memory
+\begin{center}
+Virtual addresses have:\ \\ \ \\
+\begin{tabular}{|c|c|}
+\hline
+Bits Total & 32 \\
+\hline
+Offset Bits & 3 (2 downto 0)\\
+\hline
+Index Bits & 13 (15 downto 3)\\
+\hline
+Tag Bits & 16 (31 downto 16)\\
+\hline
+Page Offset Bits & 15 (14 downto 0) \\
+\hline
+Virtual Page Number Bits & 17 (31 downto 15) \\
+\hline
+\end{tabular}
+\end{center}
+\begin{center}
+Physical Addresses Have:\ \\ \ \\
+\begin{tabular}{|c|c|}
+\hline
+Bits Total & 31 \\
+\hline
+Page Offset Bits & 15 (14 downto 0) \\
+Physical Page Number Bits & 16 (30 downto 15) \\
+\hline
+\end{tabular}
+\end{center}
+Are you able to access the TLB and the cache in parallel?\\\\
+No.  \[(CacheSize / Associativity) \leq PageSize \] \[(64KB / 1) \not \leq 32KB\]
+The number of index and offset bits for the cache (16) exceeds the number of page offset bits (15).  Therefore, the VPN is needed to look up an item in cache, but the VPN won't be known until translation finishes.
+\pagebreak
+\item Dynamic Scheduling
+\begin{description}
+\item[Part A.]\ \\
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Instruction & Dispatch & Issue & Writeback & Commit \\
+\hline
+\hline
+ld [p1] \ding{222} p2 & 1 & 2 & 5 & 6 \\
+\hline
+add p2, p2 \ding{222} p3 & 1 & 5 & 6 & 7 \\
+\hline
+add p2, p3 \ding{222} p4 & 2 & 6 & 7 & 8 \\
+\hline
+st p4 \ding{222} [p6] & 2 & 7 & 8 & 9 \\
+\hline
+ld 0[p2] \ding{222} p7 & 3 & 9 & 12 & 13 \\
+\hline
+st p7 \ding{222} 4[p3] & 3 & 12 & 13 & 14 \\
+\hline
+ld 3[p3] \ding{222} p8 & 4 & 14 & 17 & 18 \\
+\hline
+addi p7, p4 \ding{222} p9 & 4 & 12 & 13 & 18 \\
+\hline
+\end{tabular}
+\end{center}
+\item[Part B.]\ \\
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Instruction & Dispatch & Issue & Writeback & Commit \\
+\hline
+\hline
+ld [p1] \ding{222} p2 & 1 & 2 & 5 & 6 \\
+\hline
+add p2, p2 \ding{222} p3 & 1 & 5 & 6 & 7 \\
+\hline
+add p2, p3 \ding{222} p4 & 2 & 6 & 7 & 8 \\
+\hline
+st p4 \ding{222} [p6] & 2 & 7 & 8 & 9 \\
+\hline
+ld 0[p2] \ding{222} p7 & 3 & 5 & 8 & 9 \\
+\hline
+st p7 \ding{222} 4[p3] & 3 & 8 & 9 & 10 \\
+\hline
+ld 3[p3] \ding{222} p8 & 4 & 10 & 13 & 14 \\
+\hline
+addi p7, p4 \ding{222} p9 & 4 & 8 & 9 & 14 \\
+\hline
+\end{tabular}
+\end{center}
+\end{description}
+\pagebreak
+\item Dynamic Scheduling with Simplescalar
+
+\begin{description}
+\item[Experiment 1]
+As expected, the biggest difference between the in-order and out-of-order
+execution of the go and gcc programs is IPC.  The IPC increases by almost
+two-fold when allowing instructions to execute out-of-order.
+Looking at the hit and miss rates for all cache levels shows no
+statistically significant change (p = .05) on both benchmarks.
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{expOne}
+   \caption{Experiment 1}
+   \label{fig:exp1}
+\end{figure}
+
+\item[Experiment 2]\ \\
+Changing the size of the RUU had a big impact when moving from 16 to 32,
+but the impact was negligable when moving from 32 to 64.
+The reason for the significant change in 16 to 32 is that the RUU of size 16 is full about a quarter of the time whereas the RUU of size 32 is rarely full.
+If we were able to change the number of instructions fetched and the
+number of pipeline units then we suspect that we would see an improvement in
+the larger RUU as well.
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{expTwoRuuIPC}
+   \caption{Experiment 2: IPC}
+   \label{fig:exp2ipc}
+\end{figure}
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{expTwoRuuOcc}
+   \caption{Experiment 2: RUU Occupancy}
+   \label{fig:exp2occ}
+\end{figure}
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{exptwoRuuFull}
+   \caption{Experiement 2: RUU Full}
+   \label{fig:exp2full}
+\end{figure}
+
+\item[Experiment 3]\ 
+In both benchmarks, moving from a 2-wide to a 4-wide processor allowed us to
+go from sub or equal to 1-IPC to greater than 1 IPC rates.  This is because
+moving from a 2-wide processor to a 4-wide processor also allows you to feed
+the re-order unit, keeping it full more of the time.
+Unfortunately, the increase in performance is not 2x as one might hope.
+If performance is important, a 4-wide processor is likely worth the cost since 
+it speeds up code without requiring code modification.  However, going to
+8-wide would likely see much less of a speed increase and probably wouldn't
+be worth it.
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{exp3WidthIPC}
+   \caption{Experiment 3: IPC}
+   \label{fig:exp3ipc}
+\end{figure}
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{exp3RUUOccupancy}
+   \caption{Experiment 3: RUU Occupancy}
+   \label{fig:exp3occ}
+\end{figure}
+
+\item[Experiment 4]\ 
+From both the Go and the GCC benchmarks it is apparent that, for this pipeline
+and this set of applications, adding a fourth iALU has little to no benefit
+for the added cost of wiring and chip space. 
+In figure~\ref{fig:exp4diff}, we can see quantitatively that the improvement
+over a 2 iALU implementation when moving from 3 to 4 iALUs is negligible
+(the 2 iALU implementation is not shown, it is used as the standardization
+metric for the 3 and 4 iALU data therefore it is zero).
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{exp4AluIPC}
+   \caption{Experiment 4: IPC}
+   \label{fig:exp4ipc}
+\end{figure}
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=.9\textwidth]{exp4AluDiff}
+   \caption{Experiment 4: ALU Difference}
+   \label{fig:exp4diff}
+\end{figure}
+
+\item[Analysis]\ 
+\begin{enumerate}
+\item Which design decisions are the most important for performance? \\
+For this architecture and the Go/GCC benchmarks: 
+Out of order execution vs. in order nets on average 74.59\% average
+improvement in IPC which is by far the best bang for the buck, changing the
+width nets an average of 29.45\% improvement in IPC, adding additional
+iALU(s) is the next most effective when moving from 2 to 3 iALU(s) we see
+a maximum average IPC increase of 7.41\%, changing the RUU size nets the
+least improvement of all averaging a maximum of 1.67\% improvement in IPC
+when moving from a RUU of size 16 to an RUU of size 32.
+Of all these choices, out-of-order execution gives the best performance
+improvement.  Next, moving from a 2-wide processor to a 4-wide processor
+represents the next best improvement.
+\item Where would you choose lesser performing design points for reasons of power-efficiency and cost-effectiveness?\\
+If maximal efficiency and cost-effectiveness is the goal we would: limit the
+number of iALUs to 2 since the increase in performance is marginal as noted
+above.  Next, we would keep the decode/issue/commit width at 2 since moving to
+4 yields only a 29.45\% improvement and is, therefore, probably not worth
+the extra hardware.  Finally, we would keep the RUU small assuming that the
+extra hardware required for a large RUU does not provide a sufficient
+performance improvement.  Because allowing instructions to execute
+out-of-order provides such a large improvement in performance, we would
+probably keep it.  It should be noted, however, that to make an informed
+decision on what features to worth keep, we would need to know the
+relative cost of each feature.
+\end{enumerate}
+\end{description}
+
+\end{enumerate}
+\end{document}
