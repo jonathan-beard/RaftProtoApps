@@ -134,18 +134,23 @@ public:
          case( RabinKarp ):
          {
             /**
-             * get longest search term 
+             * get longest & smallest search term 
              */
-            size_t m( 0 );
+            uint64_t largest_p( 0 );
+            uint64_t smallest_p( INT64_MAX );
             for( const std::string &str : search_terms )
             {
-               const auto l( str.length() );
-               if( m < l )
+               const auto temp( str.length() );
+               if( largest_p < temp )
                {
-                  m = l;
+                  largest_p = temp;
+               }
+               if( smallest_p > temp )
+               {
+                  smallest_p = temp;
                }
             }
-            m -= 1;
+            
             /**
              * get file length 
              */
@@ -155,17 +160,15 @@ public:
 
             /** 
              * calculate number of iterations needed to cover
-             * entire file
+             * entire file, last 2 is 2 b/c we need to subtract
+             * one for the null term and another one for the single
+             * byte overlap at the end of the chunk
              */
             iterations =  
-               std::round( (double) length / (double)( CHUNKSIZE - m - 2 ) );
+               std::round( (double) length / (double)( CHUNKSIZE - largest_p - 2 ) );
             
             const uint64_t q( 17 );
             const uint64_t d( 0xff );
-            /**
-             * h - max radix power to subtract off in rolling hash
-             */
-            std::vector< uint64_t > h( search_terms.length(), 1);
             /**
              * hash_function - used to compute initial hashes
              * for pattern values "p"
@@ -184,22 +187,72 @@ public:
                }
                return( t );
             }
-            /**
-             * p - pattern hash value, only computed once and read
-             * only after that
-             */
-            std::vector< uint64_t > p( search_terms.length(), 0 );
-            for( const std::string &str :  search_terms )
-            {
-               
-            }
-            /**
-             * compute initial hashes for each search term
-             */
+            
+            auto compute_constant_data = [&](){
+               /**
+                * h - max radix power to subtract off in rolling hash
+                */
+               std::vector< uint64_t > h( search_terms.length(), 1);
+               /**
+                * p - pattern hash value, only computed once and read
+                * only after that
+                */
+               std::vector< uint64_t > p( search_terms.length(), 0 );
+               for( auto i( 0 ); i < search_terms.length(); i++ )
+               {
+                  const auto pattern( search_terms[ i ] );
+                  p[ i ] = hash_function( pattern, pattern.length() ); 
+                  for( auto j( 1 ); j < search_terms.length(); j++ )
+                  {
+                     h[ i ] = ( h[ i ]* d ) % prime;
+                  }
+               }
+               return( std::make_pair( h, p ) );
+            };
+            const auto constant_data( compute_constant_data() );
+            const auto h( constant_data.first );
+            const auto p( constant_data.second );
+            const auto n_patterns( search_terms.size() );
 
-            auto rkfunction = [&]( Line &line, std::vector< Hit > &hits )
+            auto rkfunction = [&]( Line &line, std::vector< Hit* > &hits )
             {
-               /** re-start hash **/ 
+               /**
+                * here's the game plan: 
+                * 1) the thread shared patterns "p" are stored in a globally
+                *    accessible variable "p" as uin64_t values.
+                * 2) the max radix value to subtract off is stored for each
+                *    pattern length in "h".
+                * 3) here we need to compute the initial hash for each length 
+                *    of pattern.
+                * 4) then we have to keep track of when to stop for pattern, 
+                *    obviously the longest is first but the shorter ones 
+                */
+               /** 
+                * start by calculating initial hash values for line for each
+                * of the pattern lengths, might be just as easy to "roll" 
+                * different lengths, but this seems like it might be a bit
+                * faster to just keep |search_terms| hash values for each 
+                * pattern.
+                */
+               std::vector< uint64_t > t( n_patterns, 0 );
+               for( auto pattern( 0 ); pattern < n_patterns; pattern++ )
+               {
+                  t[ pattern ] = hash_function( line.chunk, 
+                                                search_terms[ pattern ].length() );
+               }
+               size_t s( 0 );
+               do{
+                  for( auto p_index( 0 ); p_index < search_terms.size(); p_index++ )
+                  {
+                     if( p[ p_index ] == t[ p_index ] )
+                     {
+                        hits.push_back( new Hit( s + line.start_position,
+                                                 p_index ) );
+                     }
+                  }
+                  /** calculate new offsets for t **/
+
+               }while( s < = ( CHUNKSIZE - 1 /* null term */ - smallest_p ) );
             };
             worker_function = 
                std::bind( worker_function_base, _1, _2, std::ref( rkfunction ) );
