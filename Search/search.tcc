@@ -317,12 +317,7 @@ private:
                local_hits.clear();
             }
          }
-         if( signal == RBSignal::RBEOF )
-         {
-            std::cerr << "received_rbeof\n";
-         }
       }
-      std::cerr << "exiting_worker\n";
       /** we're at the end of file, send term signal **/
       output->send_signal( RBSignal::TERM );
       return;

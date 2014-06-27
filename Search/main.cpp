@@ -16,7 +16,7 @@ main( int argc, char **argv )
    std::string search_term = argv[ 2 ];
    std::vector< Hit > hits;
    
-   Search< 2, 64 >::search< RabinKarp >( input_file,
+   Search< 6, 64 >::search< RabinKarp >( input_file,
                                      search_term,
                                      hits );
 
