@@ -381,7 +381,8 @@ private:
             local_hits.clear();
          }
       }
-      /** TODO - implement way to shutdown threads when there are no hits **/
+      /** we're at the end of file, send term signal **/
+      output->send_signal( RBSignal::TERM );
    }
 
    static void consumer_function( std::array< OutputBuffer*, THREADS > &input,
@@ -402,6 +403,10 @@ private:
                {
                   sig_count++;
                }
+            }
+            if( buff->get_signal() == RBSignal::TERM )
+            {
+               sig_count++;
             }
          }
       }
