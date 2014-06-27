@@ -28,6 +28,7 @@
 #include <fstream>
 #include <thread>
 #include <utility>
+#include <algorithm>
 
 #include "ringbuffer.tcc"
 
@@ -38,7 +39,7 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 100
+#define CHUNKSIZE 65536
 
 struct Chunk
 {
@@ -66,40 +67,7 @@ struct Chunk
    char   chunk[ CHUNKSIZE ];
 };
 
-struct Hit
-{
-   Hit() : position( 0 ),
-           pattern_index( 0 )
-   {
-   }
-
-   Hit( size_t position,
-        size_t pattern_index ) : position( position ),
-                                 pattern_index( pattern_index )
-   {
-   }
-
-   Hit( const Hit &other ) : position( other.position ),
-                             pattern_index( other.pattern_index )
-   {
-
-   }
-
-   void operator = (const Hit &other )
-   {
-      position = other.position;
-      pattern_index = other.pattern_index;
-   }
-
-   static std::string get_string( const Hit &hit )
-   {
-      std::stringstream ss;
-      ss << "Position: " << hit.position << "Pattern #: " << hit.pattern_index;
-      return( ss.str() );
-   }
-   size_t position;
-   size_t pattern_index;
-};
+typedef size_t Hit;
 
 typedef RingBuffer< Chunk > InputBuffer;
 typedef RingBuffer< Hit   > OutputBuffer;
@@ -113,8 +81,8 @@ public:
    
    template< SearchAlgorithm algorithm >
    static void search( const std::string           filename,
-                       std::vector< std::string >  &search_terms,
-                       std::vector< std::string >  &hits )
+                       const std::string           search_term,
+                       std::vector< Hit >  &hits )
    {
 
 
@@ -143,25 +111,12 @@ public:
       }
      
       /** declare iterations, needed to send stop signal **/
-      size_t iterations( 0 );
+      int64_t  iterations( 0 );
       /**
        * get longest & smallest search term 
        */
-      uint64_t largest_p( 0 );
-      uint64_t smallest_p( INT64_MAX );
-      for( const std::string &str : search_terms )
-      {
-         const auto temp( str.length() );
-         if( largest_p < temp )
-         {
-            largest_p = temp;
-         }
-         if( smallest_p > temp )
-         {
-            smallest_p = temp;
-         }
-      }
-      
+      const uint64_t search_term_length( search_term.length() );
+
       /**
        * get file length 
        */
@@ -171,7 +126,6 @@ public:
 
       /** declare the worker thread function **/
       std::function< void( InputBuffer*, OutputBuffer* ) > worker_function;
-      uint64_t *m( nullptr );
       switch( algorithm )
       {
          case( RabinKarp ):
@@ -184,9 +138,10 @@ public:
              * the chunk
              */
             iterations =  
-               std::round( (double) file_length / (double)( CHUNKSIZE - largest_p - 1 ) );
+               std::round( (double) file_length / 
+                           (double)( CHUNKSIZE - search_term_length - 1 ) );
             
-            const uint64_t q( 17 );
+            const uint64_t q( 33554393 );
             const uint64_t d( 0xff );
             /**
              * hash_function - used to compute initial hashes
@@ -199,50 +154,28 @@ public:
             auto hash_function = [&]( const std::string line, 
                                       const size_t      length )
             {
-               uint64_t t( 0 );
+               int64_t t( 0 );
                for( size_t i( 0 ); i < length; i++ )
                {
                   t = ( ( t * d ) + line[ i ] ) % q;
                }
                return( t );
             };
-            /** store this since it'll be used quite a bit **/
-            const auto n_patterns( search_terms.size() );
             
-
-            auto compute_constant_data = [&](){
-               std::vector< uint64_t > p( n_patterns, 0 );
-               std::vector< uint64_t > h( n_patterns, 1 );
-               for( auto i( 0 ); i < n_patterns; i++ )
-               {
-                  const auto pattern( search_terms[ i ] );
-                  p[ i ] = hash_function( pattern, pattern.length() ); 
-                  for( auto j( 1 ); j < n_patterns; j++ )
-                  {
-                     h[ i ] = ( h[ i ] * d ) % q;
-                  }
-               }
-               return( std::make_pair( h, p ) );
-            };
-            const auto constant_data( compute_constant_data() );
             /**
              * h - max radix power to subtract off in rolling hash
              */
-            const auto h( constant_data.first );
+            uint64_t h( 1 );
             /**
              * p - pattern hash value, only computed once and read
              * only after that
              */
-            const auto p( constant_data.second );
-            /** 
-             * NOTE: if there are more than a few queries then might be 
-             * more efficient to return a pointer.
-             */
-            m = new uint64_t[ n_patterns ]();
-            for( size_t i( 0 ); i < n_patterns; i++ )
+            int64_t p(  hash_function( search_term, search_term_length ) );
+            for( auto i( 1 ); i < search_term_length; i++ )
             {
-               m[ i ] =  search_terms[ i ].length();
+               h = ( h * d ) % q;
             }
+
 
             auto rkfunction = [&]( Chunk &chunk, std::vector< Hit > &hits )
             {
@@ -264,39 +197,25 @@ public:
                 * faster to just keep |search_terms| hash values for each 
                 * pattern.
                 */
-               uint64_t *t = new uint64_t[ n_patterns ];
-               for( auto pattern( 0 ); pattern < n_patterns; pattern++ )
-               {
-                  t[ pattern ] = hash_function( chunk.chunk, 
-                                                search_terms[ pattern ].length() );
-               }
-               /** temp value for use below **/
-               Hit temp;
+               uint64_t t( hash_function( chunk.chunk, 
+                                          search_term_length ) );
+
                /** increment var for do loop below **/
                size_t s( 0 );
                do{
-                  for( auto p_index( 0 ); p_index < search_terms.size(); p_index++ )
+                  if( p == t )
                   {
-                     if( s <= ( CHUNKSIZE - m[ p_index ] /* pattern length */ ) )
-                     {
-                        if( p[ p_index ] == t[ p_index ] )
-                        {
-                           temp.position      = s + chunk.start_position;
-                           temp.pattern_index = p_index;
-                           hits.push_back( temp /* make copy */ );
-                        }
-                        /** calculate new offsets for t[ p_index ] **/
-                        const auto remove_val( ( chunk.chunk[ s ] * h[ p_index ] ) % q );
-                        t[ p_index ] = ( t[ p_index ] - remove_val ) % q;
-                        t[ p_index ] = ( d * t[ p_index ] ) % q;
-                        t[ p_index ] = ( t[ p_index ] + chunk.chunk[ s + m[ p_index ] ] ) % q;
-                     }
+                     hits.push_back( s + chunk.start_position );
                   }
+                  /** calc new offsets **/
+                  const auto remove_val( ( chunk.chunk[ s ] * h ) % q );
+                  t = ( t + (d * q )- remove_val ) % q;
+                  t = ( d * t ) % q;
+                  t = ( t + chunk.chunk[ s + search_term_length ] ) % q;
                   s++;
-                  /** stop when we're at the end of the smallest pattern **/
-               }while( s <= ( CHUNKSIZE - smallest_p ) );
-               delete[]( t );
+               }while( s <= ( CHUNKSIZE - search_term_length ) );
             };
+            /** assign the worker funciton for the Rabin Karp algorithm **/
             worker_function = 
                std::bind( worker_function_base, 
                           std::placeholders::_1, 
@@ -325,9 +244,29 @@ public:
          chunk.start_position = file_input.tellg();
          file_input.read( chunk.chunk, CHUNKSIZE );
          chunk.length = ( size_t )file_input.gcount();
-         input_stream->push( ( --iterations > THREADS ? RBSignal::NONE : RBSignal::RBEOF ) );
-         file_input.seekg( (size_t) file_input.tellg() - largest_p + 1 );
+         if( iterations-- > THREADS )
+         {
+            input_stream->push( RBSignal::NONE ); 
+         }
+         else
+         {
+            input_stream->push( RBSignal::RBEOF );
+         }
+         if( iterations >= 0 )
+         {
+            file_input.seekg( 
+               (size_t) file_input.tellg() - search_term_length + 1 );
+         }
          output_stream = ( output_stream + 1 ) % THREADS;
+      }
+      
+      /** 
+       * buffer might already have exited, but it won't hurt
+       * to send another signal to be sure.
+       */
+      for( InputBuffer *buff : input_buffer )
+      {
+         buff->send_signal( RBSignal::TERM );
       }
       
       /** end of file, wait for results **/
@@ -350,11 +289,6 @@ public:
          buff = nullptr;
       }
       
-      if( m != nullptr ) 
-      { 
-         delete[]( m );
-         m = nullptr;
-      }
       file_input.close();
    }
 private:
@@ -371,14 +305,18 @@ private:
       std::vector< Hit > local_hits;
       Chunk chunk;
       RBSignal signal( RBSignal::NONE );
-      while( signal != RBSignal::RBEOF )
+      while( signal != RBSignal::RBEOF && 
+             input->get_signal() != RBSignal::TERM )
       {
-         input->pop( chunk, &signal );
-         search_function( chunk, local_hits );
-         if( local_hits.size() > 0 )
+         if( input->size() > 0 )
          {
-            output->insert( local_hits.begin(), local_hits.end(), signal );
-            local_hits.clear();
+            input->pop( chunk, &signal );
+            search_function( chunk, local_hits );
+            if( local_hits.size() > 0 )
+            {
+               output->insert( local_hits.begin(), local_hits.end(), signal );
+               local_hits.clear();
+            }
          }
       }
       /** we're at the end of file, send term signal **/
@@ -387,25 +325,34 @@ private:
    }
 
    static void consumer_function( std::array< OutputBuffer*, THREADS > &input,
-                                  std::vector< std::string >           &hits )
+                                  std::vector< Hit >                &hits )
    {
       int sig_count( 0 );
       Hit hit;
       RBSignal sig( RBSignal::NONE );
-      while( sig_count < THREADS )
+      auto data = []( std::array< OutputBuffer*, THREADS > &in )
+      {
+         for( auto *buff : in )
+         {
+            if( buff->size() > 0 ) return( true );
+         }
+         return( false );
+      };
+
+      while( sig_count  < THREADS  ||  data( input ) )
       {
          for( auto *buff : input )
          {
             if( buff->size() > 0 )
             {
                buff->pop( hit, &sig );
-               hits.push_back( Hit::get_string( hit ) );
+               hits.push_back( hit );
                if( sig == RBSignal::RBEOF )
                {
                   sig_count++;
                }
             }
-            if( buff->get_signal() == RBSignal::TERM )
+            else if( buff->get_signal() == RBSignal::TERM )
             {
                sig_count++;
             }

@@ -13,20 +13,16 @@ main( int argc, char **argv )
       std::cerr << "There should be more than a single command line argument!!\n";
    }
    std::string input_file = argv[ 1 ];
-   std::vector< std::string > search_terms;
-   for( int i( 2 ); i < argc; i++ )
-   {
-      search_terms.push_back( argv[ i ] );
-   }
-   std::vector< std::string > hits;
+   std::string search_term = argv[ 2 ];
+   std::vector< Hit > hits;
    
-   Search< 1 >::search< RabinKarp >( input_file,
-                                     search_terms,
+   Search< 2, 128 >::search< RabinKarp >( input_file,
+                                     search_term,
                                      hits );
 
-   for( const std::string &str : hits )
+   for( const auto &val : hits )
    {
-      std::cerr << str << "\n";
+      std::cout<< val << "\n";
    }
    return( EXIT_FAILURE );
 }

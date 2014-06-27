@@ -9,7 +9,7 @@
 #include <type_traits>
 
 
-const uint64_t prime = 17;
+const uint64_t prime = 33554393;
 const uint64_t d     = 0xff;
 
 bool 
@@ -39,9 +39,9 @@ main( int argc, char **argv )
    const auto m = P.length();
    const auto n = T.length();
 
-   uint64_t h( 1 );
-   uint64_t p( 0 );
-   uint64_t t( 0 );
+   int64_t h( 1 );
+   int64_t p( 0 );
+   int64_t t( 0 );
 
    for( size_t i( 0 ); i < m; i++ )
    {
@@ -63,7 +63,7 @@ main( int argc, char **argv )
             (s + m) << " ): " << T.substr( s, m ) << "\n";
       }
       const auto remove_val( ( T[ s ] * h ) % prime );
-      t = ( t - remove_val ) % prime;
+      t = ( t + (d * prime) - remove_val ) % prime;
       t = (d * t ) % prime;
       t = ( t + T[ s + m ]) % prime;
       s++;
