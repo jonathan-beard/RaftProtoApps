@@ -383,6 +383,7 @@ private:
       }
       /** we're at the end of file, send term signal **/
       output->send_signal( RBSignal::TERM );
+      return;
    }
 
    static void consumer_function( std::array< OutputBuffer*, THREADS > &input,
