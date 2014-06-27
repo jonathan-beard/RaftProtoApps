@@ -39,7 +39,7 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 1024
+#define CHUNKSIZE 65536
 
 struct Chunk
 {
