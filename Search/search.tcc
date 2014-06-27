@@ -252,10 +252,10 @@ public:
          {
             input_stream->push( RBSignal::RBEOF );
          }
-         if( iterations >= 0 )
+         if( iterations )
          {
             file_input.seekg( 
-               (size_t) file_input.tellg() - search_term_length + 1 );
+               (size_t) file_input.tellg() - search_term_length - 1 );
          }
          output_stream = ( output_stream + 1 ) % THREADS;
       }
@@ -305,8 +305,7 @@ private:
       std::vector< Hit > local_hits;
       Chunk chunk;
       RBSignal signal( RBSignal::NONE );
-      while( signal != RBSignal::RBEOF && 
-             input->get_signal() != RBSignal::TERM )
+      while( signal != RBSignal::RBEOF ) 
       {
          if( input->size() > 0 )
          {
@@ -318,7 +317,12 @@ private:
                local_hits.clear();
             }
          }
+         if( signal == RBSignal::RBEOF )
+         {
+            std::cerr << "received_rbeof\n";
+         }
       }
+      std::cerr << "exiting_worker\n";
       /** we're at the end of file, send term signal **/
       output->send_signal( RBSignal::TERM );
       return;
