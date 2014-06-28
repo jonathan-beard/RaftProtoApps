@@ -304,7 +304,7 @@ private:
       assert( output != nullptr );
       std::vector< Hit > local_hits;
       RBSignal signal( RBSignal::NONE );
-      while( signal != RBSignal::RBEOF ) 
+      while( signal != RBSignal::RBEOF && input->get_signal() != RBSignal::TERM ) 
       {
          if( input->size() > 0 )
          {
@@ -318,8 +318,8 @@ private:
             input->recycle();
          }
       }
-      /** we're at the end of file, send term signal **/
       output->send_signal( RBSignal::TERM );
+      fprintf( stderr, "worker_exited\n" );
       return;
    }
 
@@ -329,16 +329,15 @@ private:
       int sig_count( 0 );
       Hit hit;
       RBSignal sig( RBSignal::NONE );
-      //auto data = []( std::array< OutputBuffer*, THREADS > &in )
-      //{
-      //   for( auto *buff : in )
-      //   {
-      //      if( buff->size() > 0 ) return( true );
-      //   }
-      //   return( false );
-      //};
-
-      while( sig_count  < THREADS  /* ||   data( input ) */)
+      auto data = []( std::array< OutputBuffer*, THREADS > &in )
+      {
+         for( auto *buff : in )
+         {
+            if( buff->size() > 0 ) return( true );
+         }
+         return( false );
+      };
+      while( sig_count < THREADS )
       {
          for( auto *buff : input )
          {
@@ -346,17 +345,16 @@ private:
             {
                buff->pop( hit, &sig );
                hits.push_back( hit );
-               if( sig == RBSignal::RBEOF )
-               {
-                  sig_count++;
-               }
             }
-            else if( buff->get_signal() == RBSignal::TERM )
+            if( buff->get_signal() == RBSignal::TERM )
             {
+               
                sig_count++;
+               std::cerr << sig_count << "\n";
             }
          }
       }
+      fprintf( stderr, "consumer_exited\n");
       return;
    }
 };
