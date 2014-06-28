@@ -39,7 +39,7 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 65536
+#define CHUNKSIZE 1024
 
 struct Chunk
 {
@@ -303,19 +303,19 @@ private:
       assert( input != nullptr );
       assert( output != nullptr );
       std::vector< Hit > local_hits;
-      Chunk chunk;
       RBSignal signal( RBSignal::NONE );
       while( signal != RBSignal::RBEOF ) 
       {
          if( input->size() > 0 )
          {
-            input->pop( chunk, &signal );
+            auto &chunk( input->peek( &signal ) );
             search_function( chunk, local_hits );
             if( local_hits.size() > 0 )
             {
                output->insert( local_hits.begin(), local_hits.end(), signal );
                local_hits.clear();
             }
+            input->recycle();
          }
       }
       /** we're at the end of file, send term signal **/
@@ -329,16 +329,16 @@ private:
       int sig_count( 0 );
       Hit hit;
       RBSignal sig( RBSignal::NONE );
-      auto data = []( std::array< OutputBuffer*, THREADS > &in )
-      {
-         for( auto *buff : in )
-         {
-            if( buff->size() > 0 ) return( true );
-         }
-         return( false );
-      };
+      //auto data = []( std::array< OutputBuffer*, THREADS > &in )
+      //{
+      //   for( auto *buff : in )
+      //   {
+      //      if( buff->size() > 0 ) return( true );
+      //   }
+      //   return( false );
+      //};
 
-      while( sig_count  < THREADS  ||  data( input ) )
+      while( sig_count  < THREADS  /* ||   data( input ) */)
       {
          for( auto *buff : input )
          {
