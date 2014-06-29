@@ -126,6 +126,9 @@ public:
 
       /** declare the worker thread function **/
       std::function< void( InputBuffer*, OutputBuffer* ) > worker_function;
+      uint64_t q;
+      uint64_t d;
+
       switch( algorithm )
       {
          case( RabinKarp ):
@@ -141,8 +144,8 @@ public:
                std::round( (double) file_length / 
                            (double)( CHUNKSIZE - search_term_length - 1 ) );
             
-            const uint64_t q( 33554393 );
-            const uint64_t d( 0xff );
+            q = 33554393 ;
+            d = 0xff ;
             /**
              * hash_function - used to compute initial hashes
              * for pattern values "p"
@@ -244,7 +247,7 @@ public:
          chunk.start_position = file_input.tellg();
          file_input.read( chunk.chunk, CHUNKSIZE );
          chunk.length = ( size_t )file_input.gcount();
-         if( iterations-- > THREADS )
+         if( iterations-- >= THREADS )
          {
             input_stream->push( RBSignal::NONE ); 
          }
@@ -268,7 +271,7 @@ public:
       {
          buff->send_signal( RBSignal::TERM );
       }
-      
+     
       /** end of file, wait for results **/
       for( std::thread *th : thread_pool )
       {
@@ -304,7 +307,7 @@ private:
       assert( output != nullptr );
       std::vector< Hit > local_hits;
       RBSignal signal( RBSignal::NONE );
-      while( signal != RBSignal::RBEOF && input->get_signal() != RBSignal::TERM ) 
+      while( signal != RBSignal::RBEOF  ) 
       {
          if( input->size() > 0 )
          {
@@ -317,44 +320,39 @@ private:
             }
             input->recycle();
          }
+         else if( input->get_signal() == RBSignal::TERM )
+         {
+            break;
+         }
       }
+      /** don't know if there were any hits or not so lets send a term signal **/
       output->send_signal( RBSignal::TERM );
-      fprintf( stderr, "worker_exited\n" );
+      fprintf( stderr, "exiting_worker\n" );
       return;
    }
 
    static void consumer_function( std::array< OutputBuffer*, THREADS > &input,
                                   std::vector< Hit >                &hits )
    {
-      int sig_count( 0 );
+      size_t term_sig_count( 0 );
       Hit hit;
-      RBSignal sig( RBSignal::NONE );
-      auto data = []( std::array< OutputBuffer*, THREADS > &in )
-      {
-         for( auto *buff : in )
-         {
-            if( buff->size() > 0 ) return( true );
-         }
-         return( false );
-      };
-      while( sig_count < THREADS )
+      while( term_sig_count < THREADS )
       {
          for( auto *buff : input )
          {
             if( buff->size() > 0 )
             {
-               buff->pop( hit, &sig );
+               buff->pop( hit );
                hits.push_back( hit );
             }
             if( buff->get_signal() == RBSignal::TERM )
             {
-               
-               sig_count++;
-               std::cerr << sig_count << "\n";
+               fprintf( stderr, "term_received\n" );
+               term_sig_count++;
             }
          }
       }
-      fprintf( stderr, "consumer_exited\n");
+      fprintf( stderr, "exiting_consumer\n" );
       return;
    }
 };
