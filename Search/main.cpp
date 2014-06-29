@@ -14,8 +14,9 @@ main( int argc, char **argv )
    {
       std::cerr << "There should be more than a single command line argument!!\n";
    }
-   std::string input_file = argv[ 1 ];
-   std::string search_term = argv[ 2 ];
+   std::string input_file  = argv[ 2 ];
+   std::string search_term = argv[ 1 ];
+
    std::vector< Hit > hits;
    
    Search< 8, 256 >::search< RabinKarp >( input_file,
