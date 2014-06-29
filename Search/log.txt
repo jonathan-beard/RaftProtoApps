@@ -1,7 +1,0 @@
-/Applications/Xcode.app/Contents/Developer/usr/bin/make ../../simpleringbuffer/getrandom.o main.o ../../simpleringbuffer/pointer.o ../../simpleringbuffer/shm.o ../../simpleringbuffer/Clock.o
-gcc -c -O0 -Wall -std=c99	  -DRDTSCP=1   -I../../simpleringbuffer/ -o ../../simpleringbuffer/getrandom.o ../../simpleringbuffer/getrandom.c
-g++ -c -O0 -Wall -std=c++11 -DRDTSCP=1    -I../../simpleringbuffer/ -o main.o main.cpp
-g++ -c -O0 -Wall -std=c++11 -DRDTSCP=1    -I../../simpleringbuffer/ -o ../../simpleringbuffer/pointer.o ../../simpleringbuffer/pointer.cpp
-g++ -c -O0 -Wall -std=c++11 -DRDTSCP=1    -I../../simpleringbuffer/ -o ../../simpleringbuffer/shm.o ../../simpleringbuffer/shm.cpp
-g++ -c -O0 -Wall -std=c++11 -DRDTSCP=1    -I../../simpleringbuffer/ -o ../../simpleringbuffer/Clock.o ../../simpleringbuffer/Clock.cpp
-g++ -O0 -Wall -std=c++11 -DRDTSCP=1    -I../../simpleringbuffer/ ../../simpleringbuffer/getrandom.o main.o ../../simpleringbuffer/pointer.o ../../simpleringbuffer/shm.o ../../simpleringbuffer/Clock.o -lpthread  -o sgrep
