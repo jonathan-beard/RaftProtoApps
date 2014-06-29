@@ -39,7 +39,7 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 1024
+#define CHUNKSIZE 65536 
 
 struct Chunk
 {
@@ -247,14 +247,14 @@ public:
          chunk.start_position = file_input.tellg();
          file_input.read( chunk.chunk, CHUNKSIZE );
          chunk.length = ( size_t )file_input.gcount();
-         if( iterations-- >= THREADS )
-         {
-            input_stream->push( RBSignal::NONE ); 
-         }
-         else
-         {
-            input_stream->push( RBSignal::RBEOF );
-         }
+         //if( iterations-- >= THREADS )
+         //{
+            input_stream->push( /*RBSignal::NONE*/); 
+         //}
+         //else
+         //{
+         //   input_stream->push( RBSignal::TERM );
+         //}
          if( iterations )
          {
             file_input.seekg( 
@@ -262,16 +262,14 @@ public:
          }
          output_stream = ( output_stream + 1 ) % THREADS;
       }
-      
-      /** 
-       * buffer might already have exited, but it won't hurt
-       * to send another signal to be sure.
-       */
+    
       for( InputBuffer *buff : input_buffer )
       {
-         buff->send_signal( RBSignal::TERM );
+         Chunk &chunk( buff->allocate() );
+         chunk.length = 0;
+         buff->push( RBSignal::TERM );
       }
-     
+      
       /** end of file, wait for results **/
       for( std::thread *th : thread_pool )
       {
@@ -307,52 +305,63 @@ private:
       assert( output != nullptr );
       std::vector< Hit > local_hits;
       RBSignal signal( RBSignal::NONE );
-      while( signal != RBSignal::RBEOF  ) 
+      while( true  ) 
       {
          if( input->size() > 0 )
          {
             auto &chunk( input->peek( &signal ) );
+            if( signal == RBSignal::TERM )
+            {
+               /** 
+                * TODO, gotta redo the asynchronous signalling so in the mean time,
+                * this will work.
+                */
+               input->recycle();
+               auto &temp( output->allocate() );
+               temp = 0;
+               output->push( RBSignal::TERM );
+               return;
+            }
             search_function( chunk, local_hits );
             if( local_hits.size() > 0 )
             {
-               output->insert( local_hits.begin(), local_hits.end(), signal );
+               output->insert( local_hits.begin(), local_hits.end() );
                local_hits.clear();
             }
             input->recycle();
          }
-         else if( input->get_signal() == RBSignal::TERM )
-         {
-            break;
-         }
       }
-      /** don't know if there were any hits or not so lets send a term signal **/
-      output->send_signal( RBSignal::TERM );
-      fprintf( stderr, "exiting_worker\n" );
-      return;
    }
+
+   /** 
+    * TODO, add verification kernel...spurious hits are unlikely but with 
+    * a bit enough file they can happen.
+    */
 
    static void consumer_function( std::array< OutputBuffer*, THREADS > &input,
                                   std::vector< Hit >                &hits )
    {
       size_t term_sig_count( 0 );
       Hit hit;
+      RBSignal signal( RBSignal::NONE );
       while( term_sig_count < THREADS )
       {
          for( auto *buff : input )
          {
             if( buff->size() > 0 )
             {
-               buff->pop( hit );
-               hits.push_back( hit );
-            }
-            if( buff->get_signal() == RBSignal::TERM )
-            {
-               fprintf( stderr, "term_received\n" );
-               term_sig_count++;
+               buff->pop( hit, &signal );
+               if( signal == RBSignal::TERM )
+               {
+                  term_sig_count++;
+               }
+               else
+               {
+                  hits.push_back( hit );
+               }
             }
          }
       }
-      fprintf( stderr, "exiting_consumer\n" );
       return;
    }
 };
