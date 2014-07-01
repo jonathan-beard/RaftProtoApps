@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <cstdint>
+#include <cinttypes>
 #include "search.tcc"
 
 int
@@ -12,17 +14,18 @@ main( int argc, char **argv )
    {
       std::cerr << "There should be more than a single command line argument!!\n";
    }
-   std::string input_file = argv[ 1 ];
-   std::string search_term = argv[ 2 ];
+   std::string input_file  = argv[ 2 ];
+   std::string search_term = argv[ 1 ];
+
    std::vector< Hit > hits;
    
-   Search< 2, 4 >::search< RabinKarp >( input_file,
+   Search< 8, 256 >::search< RabinKarp >( input_file,
                                      search_term,
                                      hits );
 
    for( const auto &val : hits )
    {
-      std::cout<< val << "\n";
+      fprintf( stdout, "%" PRIu64 ":%s\n", val, argv[ 2 ] );
    }
    return( EXIT_FAILURE );
 }
