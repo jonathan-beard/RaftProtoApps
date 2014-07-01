@@ -11,8 +11,10 @@ RT = -lrt
 #STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-CFLAGS =     -O3 -msse4.1 -Wall -std=c99	  -DRDTSCP=1 
-CXXFLAGS =   -O3 -msse4.1 -Wall -std=c++11 -DRDTSCP=1  
+MONITOR ?= -DMONITOR=0
+
+CFLAGS =     -O0 -Wall -std=c99	  -DRDTSCP=1 $(MONITOR) 
+CXXFLAGS =   -O0 -Wall -std=c++11  -DRDTSCP=1 $(MONITOR)
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom

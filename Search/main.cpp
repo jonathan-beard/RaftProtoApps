@@ -19,13 +19,20 @@ main( int argc, char **argv )
 
    std::vector< Hit > hits;
    
-   Search< 8, 256 >::search< RabinKarp >( input_file,
+   Search< 3, 256 >::search< RabinKarp >( input_file,
                                      search_term,
                                      hits );
 
+   std::ofstream ofs( "/dev/null" );
+   if( ! ofs.is_open() )
+   {
+      std::cerr << "Didn't open output stream, exiting!!\n";
+      exit( EXIT_FAILURE );
+   }
+   /** else **/
    for( const auto &val : hits )
    {
-      fprintf( stdout, "%" PRIu64 ":%s\n", val, argv[ 2 ] );
+      ofs << val << ": " << argv[ 2 ] << "\n";;
    }
    return( EXIT_FAILURE );
 }

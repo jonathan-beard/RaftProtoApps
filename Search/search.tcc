@@ -29,8 +29,12 @@
 #include <thread>
 #include <utility>
 #include <algorithm>
-
+#include "systeminfo.hpp"
 #include "ringbuffer.tcc"
+#include "SystemClock.tcc"
+
+
+Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
 
 enum SearchAlgorithm 
 { 
@@ -69,8 +73,17 @@ struct Chunk
 
 typedef size_t Hit;
 
+#if MONITOR==1
+typedef RingBuffer< Chunk, 
+                    RingBufferType::Heap,
+                    true > InputBuffer;
+typedef RingBuffer< Hit,
+                    RingBufferType::Heap,
+                    true > OutputBuffer;
+#else
 typedef RingBuffer< Chunk > InputBuffer;
 typedef RingBuffer< Hit   > OutputBuffer;
+#endif
 
 template < size_t THREADS, 
            size_t BUFFSIZE = 100 > class Search
@@ -247,14 +260,7 @@ public:
          chunk.start_position = file_input.tellg();
          file_input.read( chunk.chunk, CHUNKSIZE );
          chunk.length = ( size_t )file_input.gcount();
-         //if( iterations-- >= THREADS )
-         //{
-            input_stream->push( /*RBSignal::NONE*/); 
-         //}
-         //else
-         //{
-         //   input_stream->push( RBSignal::TERM );
-         //}
+         input_stream->push( /*RBSignal::NONE*/); 
          if( iterations )
          {
             file_input.seekg( 
@@ -262,7 +268,7 @@ public:
          }
          output_stream = ( output_stream + 1 ) % THREADS;
       }
-    
+      /** until I fix the asynchronous signalling, send dummy **/ 
       for( InputBuffer *buff : input_buffer )
       {
          Chunk &chunk( buff->allocate() );
@@ -277,15 +283,44 @@ public:
          delete( th );
          th = nullptr;
       }
-
+#if MONITOR==1
+      std::string traits;
+      {
+         std::stringstream trait_stream;
+         const auto num_traits( SystemInfo::getNumTraits() );
+         for( auto index( 0 ); index < num_traits; index++ )
+         {
+            trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
+         }
+         traits = trait_stream.str();
+      }
+#endif
       for( InputBuffer *buff : input_buffer )
       {
+#if MONITOR==1
+         auto &monitor_data( buff->getQueueData() );
+         std::cout << traits;
+         Monitor::QueueData::print( monitor_data,
+                                    Monitor::QueueData::Bytes,
+                                    std::cout,
+                                    true );
+         std::cout << "\n";
+#endif
          delete( buff );
          buff = nullptr;
       }
 
       for( OutputBuffer *buff : output_buffer )
       {
+#if MONITOR==1
+         auto &monitor_data( buff->getQueueData() );
+         std::cout << traits;
+         Monitor::QueueData::print( monitor_data,
+                                    Monitor::QueueData::Bytes,
+                                    std::cout,
+                                    true );
+         std::cout << "\n";
+#endif
          delete( buff );
          buff = nullptr;
       }
