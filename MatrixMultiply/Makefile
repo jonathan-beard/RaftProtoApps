@@ -14,9 +14,6 @@ endif
 CFLAGS =     -O0 -Wall -std=c99	  -DRDTSCP=1 
 CXXFLAGS =   -O0 -Wall -std=c++11 -DRDTSCP=1  
 
-BUFFERCPPOBJS = pointer shm
-BUFFERCOBJS   = getrandom
-
 
 COBJS =  $(RBCOBJS) 
 CXXOBJS = main $(RBCXXOBJS) 

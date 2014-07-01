@@ -34,6 +34,7 @@
 #include "ringbuffer.tcc"
 #include "ParallelMatrixMult.tcc"
 #include "Matrix.tcc"
+#include "systeminfo.hpp"
 
 #define MONITOR      1
 
@@ -68,11 +69,11 @@ public:
    virtual ~MatrixOp() = delete;
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
-                       RingBufferType::Infinite, 
+                       RingBufferType::Heap, 
                        true >                      PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
-                       RingBufferType::Infinite,
+                       RingBufferType::Heap,
                        true >                      OutputBuffer;
 
 #else   
@@ -164,12 +165,29 @@ public:
          thread = nullptr;
       }
       /** get info **/
+
+#if MONITOR
+      std::string traits;
+      {
+         std::stringstream trait_stream;
+         const auto num_traits( SystemInfo::getNumTraits() );
+         for( auto index( 0 ); index < num_traits; index++ )
+         {
+            trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
+         }
+         traits = trait_stream.str();
+      }
+#endif
       for( auto *buffer : buffer_list )
       {
 #if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
-         Monitor::QueueData::print( monitor_data, Monitor::QueueData::MB, std::cerr, true );
-         std::cerr << "\n";
+         std::cout << traits;
+         Monitor::QueueData::print( monitor_data, 
+                                    Monitor::QueueData::Bytes, 
+                                    std::cout, 
+                                    true );
+         std::cout << "\n";
 #endif         
          delete( buffer );
          buffer = nullptr;
@@ -179,8 +197,12 @@ public:
       {
 #if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
-         Monitor::QueueData::print( monitor_data, Monitor::QueueData::MB, std::cerr, true );
-         std::cerr << "\n";
+         std::cout << traits;
+         Monitor::QueueData::print( monitor_data, 
+                                    Monitor::QueueData::Bytes, 
+                                    std::cout, 
+                                    true );
+         std::cout << "\n";                                    
 #endif         
          delete( buffer );
          buffer = nullptr;
