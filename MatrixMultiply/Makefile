@@ -1,5 +1,5 @@
-CC     = gcc
-CXX    = g++
+CC     = clang
+CXX    = clang++
 
 
 include ../../simpleringbuffer/buffer.makefile
@@ -11,7 +11,7 @@ RT = -lrt
 STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-CFLAGS =     -O0 -Wall -std=c99	  -DRDTSCP=1 
+CFLAGS =     -O0  -Wall -std=c99	  -DRDTSCP=1 
 CXXFLAGS =   -O0 -Wall -std=c++11 -DRDTSCP=1  
 
 

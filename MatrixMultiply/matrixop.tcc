@@ -113,8 +113,8 @@ public:
       std::array< OutputBuffer*, THREADS >    output_list;
       for( size_t i( 0 ); i < THREADS; i++ )
       {
-         buffer_list[ i ] = new PBuffer(        100 );
-         output_list[ i ] = new OutputBuffer(   100 );
+         buffer_list[ i ] = new PBuffer(        5000 );
+         output_list[ i ] = new OutputBuffer(   5000 );
       }
       for( size_t i( 0 ); i < THREADS; i++ )
       {

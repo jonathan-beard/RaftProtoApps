@@ -22,10 +22,10 @@
 #include "matrixop.tcc"
 
 #include "randomstring.tcc"
-
 #include "SystemClock.tcc"
+#include <cassert>
 
-Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
+Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
 typedef float thetype_t;
 
@@ -34,12 +34,13 @@ main( int argc, char **argv )
 {
    
     
-   const std::string filename( "randomarray.csv" );
+   //const std::string filename( "randomarray.csv" );
+   const std::string filename( "/project/mercury/svardata/10000_10000_float.csv" );
    //const std::string filename( "intmatrix100_100.csv" );
    //const std::string filename( "supersmall.csv" );
    
    auto *A = Matrix< thetype_t >::initFromFile( filename );
-   
+   assert( A != nullptr );
    //same matrix, avoid reading from disk again 
    auto *x      = new Matrix< thetype_t >( *A );
    
