@@ -8,13 +8,14 @@ DIRINCS = $(RINGBUFFERDIR)
 
 ifneq ($(shell uname -s), Darwin)
 RT = -lrt
-#STATIC = -static -static-libgcc -static-libstdc++
+STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-MONITOR ?= -DMONITOR=0
+MONITOR 	?= -DMONITOR=1
+FAKEDATA ?= -DFAKEDATA=0
 
-CFLAGS =     -O0 -Wall -std=c99	  -DRDTSCP=1 $(MONITOR) 
-CXXFLAGS =   -O0 -Wall -std=c++11  -DRDTSCP=1 $(MONITOR)
+CFLAGS =     -O0 -Wall -std=c99	  -DRDTSCP=1 $(MONITOR) $(FAKEDATA) 
+CXXFLAGS =   -O0 -Wall -std=c++11  -DRDTSCP=1 $(MONITOR) $(FAKEDATA)
 
 BUFFERCPPOBJS = pointer shm
 BUFFERCOBJS   = getrandom

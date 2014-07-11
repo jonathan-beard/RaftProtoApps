@@ -17,22 +17,25 @@ main( int argc, char **argv )
    std::string input_file  = argv[ 2 ];
    std::string search_term = argv[ 1 ];
 
-   std::vector< Hit > hits;
-   
-   Search< 3, 256 >::search< RabinKarp >( input_file,
-                                     search_term,
-                                     hits );
+   int runs( 20 );
+   while( runs-- )
+   {
+      std::vector< Hit > hits;
+      Search< 12, 512 >::search< RabinKarp >( input_file,
+                                        search_term,
+                                        hits );
 
-   std::ofstream ofs( "/dev/null" );
-   if( ! ofs.is_open() )
-   {
-      std::cerr << "Didn't open output stream, exiting!!\n";
-      exit( EXIT_FAILURE );
-   }
-   /** else **/
-   for( const auto &val : hits )
-   {
-      ofs << val << ": " << argv[ 2 ] << "\n";;
+      std::ofstream ofs( "/dev/null" );
+      if( ! ofs.is_open() )
+      {
+         std::cerr << "Didn't open output stream, exiting!!\n";
+         exit( EXIT_FAILURE );
+      }
+      /** else **/
+      for( const auto &val : hits )
+      {
+         ofs << val << ": " << argv[ 2 ] << "\n";;
+      }
    }
    return( EXIT_FAILURE );
 }

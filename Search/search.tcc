@@ -34,7 +34,7 @@
 #include "SystemClock.tcc"
 
 
-Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
+Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
 enum SearchAlgorithm 
 { 
@@ -75,10 +75,10 @@ typedef size_t Hit;
 
 #if MONITOR==1
 typedef RingBuffer< Chunk, 
-                    RingBufferType::Heap,
+                    RingBufferType::Infinite,
                     true > InputBuffer;
 typedef RingBuffer< Hit,
-                    RingBufferType::Heap,
+                    RingBufferType::Infinite,
                     true > OutputBuffer;
 #else
 typedef RingBuffer< Chunk > InputBuffer;
@@ -252,6 +252,9 @@ public:
       }
    
       size_t output_stream( 0 );
+#if FAKEDATA == 1
+      size_t fake_counter( 1 * (2^30) );
+#endif
       while( file_input.good() )
       {
          /** input stream with reference to the worker thread **/
@@ -260,6 +263,13 @@ public:
          chunk.start_position = file_input.tellg();
          file_input.read( chunk.chunk, CHUNKSIZE );
          chunk.length = ( size_t )file_input.gcount();
+#if FAKEDATA == 1         
+         fake_counter -= chunk.length;
+         if( fake_counter <= 0 )
+         {
+            break;
+         }
+#endif         
          input_stream->push( /*RBSignal::NONE*/); 
          if( iterations )
          {
@@ -268,6 +278,7 @@ public:
          }
          output_stream = ( output_stream + 1 ) % THREADS;
       }
+
       /** until I fix the asynchronous signalling, send dummy **/ 
       for( InputBuffer *buff : input_buffer )
       {
