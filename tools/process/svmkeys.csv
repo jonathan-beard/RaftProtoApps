@@ -1,0 +1,76 @@
+1,LevelOneICacheSize
+2,LevelOneICacheAssociativity
+3,LevelOneICacheLineSize
+4,LevelOneDCacheSize
+5,LevelOneDCacheAssociativity
+6,LevelOneDCacheLineSize
+7,LevelTwoCacheSize
+8,LevelTwoCacheAssociativity
+9,LevelTwoCacheLineSize
+10,LevelThreeCacheSize
+11,LevelThreeCacheAssociativity
+12,LevelThreeCacheLineSize
+13,LevelFourCacheSize
+14,LevelFourCacheAssociativity
+15,LevelFourCacheLineSize
+16,NumberOfProcessors
+17,ARM Cortex-A9
+18,16Quad-Core AMD Opteron(tm) Processor 2387
+19,16Dual Core AMD Opteron(tm) Processor 875
+20,16ARM1176JZF-S
+21,16PPC970
+22,16Six-Core AMD Opteron(tm) Processor 2431
+23,16Dual-Core AMD Opteron(tm) Processor 20
+24,16Dual Core AMD Opteron(tm) Processor 280
+25,16Intel(R) Core(TM) i5 CPU       M 540  @ 2.53GHz
+26,16Quad-Core AMD Opteron(tm) Processor 2376
+27,16AMD Opteron(tm) Processor 6136
+28,16AMD Opteron(TM) Processor 62
+29,16Dual-Core AMD Opteron(tm) Processor 2218
+30,16Six-Core AMD Opteron(tm) Processor 2435
+31,16Intel(R) Xeon(R) CPU E5-2650 0 @ 2.00GHz
+32,16Dual-Core AMD Opteron(tm) Processor 2222 SE
+33,16Intel(R) Xeon(R) CPU           E5345  @ 2.33GHz
+34,16Intel(R) Xeon(R) CPU           X5472  @ 3.00GHz
+35,16Intel(R) Xeon(R) CPU E31225 @ 3.10GHz
+36,16Dual-Core AMD Opteron(tm) Processor 8214
+37,ProcessorFrequency
+38,18Linux
+39,18Darwin
+40,202.6.32-358.11.1.el6.x86_64
+41,203.3.0-digilent-12.07-Zed-Beta
+42,202.6.32-431.1.2.el6.x86_64
+43,203.0.27
+44,203.2.14
+45,202.6.32-431.5.1.el6.x86_64
+46,203.10.37+
+47,203.13.0-24-PowerPc64-SMP
+48,2013.1.0
+49,202.6.32-358.23.2.el6.x86_64
+50,203.13.9-100.fc19.x86_64
+51,22armv7l
+52,22armv6l
+53,22ppc64
+54,22x86_64
+55,UpTime
+56,OneMinLoad
+57,FiveMinLoad
+58,FifteenMinLoad
+59,TotalMainMemory
+60,FreeRam
+61,SharedRam
+62,BufferRam
+63,TotalSwap
+64,FreeSwap
+65,NumberOfProcessesRunning
+66,TotalHighMemory
+67,FreeHighMemory
+68,MemoryUnit
+69,37SCHED_OTHER
+70,37traditional_with_pset_runqueue
+71,Priority
+72,ProducerDistributionMean
+73,ConsumerDistributionMean
+74,MM1->MM1
+75,pMu
+76,pLambda

@@ -1,0 +1,82 @@
+0,LevelOneICacheSize
+1,LevelOneICacheAssociativity
+2,LevelOneICacheLineSize
+3,LevelOneDCacheSize
+4,LevelOneDCacheAssociativity
+5,LevelOneDCacheLineSize
+6,LevelTwoCacheSize
+7,LevelTwoCacheAssociativity
+8,LevelTwoCacheLineSize
+9,LevelThreeCacheSize
+10,LevelThreeCacheAssociativity
+11,LevelThreeCacheLineSize
+12,LevelFourCacheSize
+13,LevelFourCacheAssociativity
+14,LevelFourCacheLineSize
+15,NumberOfProcessors
+16,ARM Cortex-A9
+17,16Quad-Core AMD Opteron(tm) Processor 2387
+18,16Dual Core AMD Opteron(tm) Processor 875
+19,16ARM1176JZF-S
+20,16PPC970
+21,16Six-Core AMD Opteron(tm) Processor 2431
+22,16Dual-Core AMD Opteron(tm) Processor 20
+23,16Dual Core AMD Opteron(tm) Processor 280
+24,16Intel(R) Core(TM) i5 CPU       M 540  @ 2.53GHz
+25,16Quad-Core AMD Opteron(tm) Processor 2376
+26,16AMD Opteron(tm) Processor 6136
+27,16AMD Opteron(TM) Processor 62
+28,16Dual-Core AMD Opteron(tm) Processor 2218
+29,16Six-Core AMD Opteron(tm) Processor 2435
+30,16Intel(R) Xeon(R) CPU E5-2650 0 @ 2.00GHz
+31,16Dual-Core AMD Opteron(tm) Processor 2222 SE
+32,16Intel(R) Xeon(R) CPU           E5345  @ 2.33GHz
+33,16Intel(R) Xeon(R) CPU           X5472  @ 3.00GHz
+34,16Intel(R) Xeon(R) CPU E31225 @ 3.10GHz
+35,16Dual-Core AMD Opteron(tm) Processor 8214
+36,ProcessorFrequency
+37,18Linux
+38,18Darwin
+39,NodeName
+40,202.6.32-358.11.1.el6.x86_64
+41,203.3.0-digilent-12.07-Zed-Beta
+42,202.6.32-431.1.2.el6.x86_64
+43,203.0.27
+44,203.2.14
+45,202.6.32-431.5.1.el6.x86_64
+46,203.10.37+
+47,203.13.0-24-PowerPc64-SMP
+48,2013.1.0
+49,202.6.32-358.23.2.el6.x86_64
+50,203.13.9-100.fc19.x86_64
+51,OSVersion
+52,22armv7l
+53,22armv6l
+54,22ppc64
+55,22x86_64
+56,UpTime
+57,OneMinLoad
+58,FiveMinLoad
+59,FifteenMinLoad
+60,TotalMainMemory
+61,FreeRam
+62,SharedRam
+63,BufferRam
+64,TotalSwap
+65,FreeSwap
+66,NumberOfProcessesRunning
+67,TotalHighMemory
+68,FreeHighMemory
+69,MemoryUnit
+70,37SCHED_OTHER
+71,37traditional_with_pset_runqueue
+72,Priority
+73,39ExponentialDistribution
+74,39NormalDistribution
+75,39Deterministic
+76,ProducerDistributionMean
+77,41Deterministic
+78,41NormalDistribution
+79,41ExponentialDistribution
+80,ConsumerDistributionMean
+81,QueueMeanOccupancy

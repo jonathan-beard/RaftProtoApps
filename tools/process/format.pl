@@ -27,7 +27,21 @@ sub initializeRates($$);
 ##
 sub reformatColumns( $$ );
 
-my ( $rateFile, $obsFile, $outputfields, $svmkeysFile ) = @ARGV;
+my $outputfields = "headings_formatted.csv";
+my $svmkeysFile  = "svmkeys.csv";
+
+##
+# kindof hacky, but to make my life easier lets go ahead
+# and generate the ratefile here so we have it
+##
+
+
+
+my ( $obsInfiniteFile, $obsFile ) = @ARGV;
+
+`cat $obsInfiniteFile | ./get_service_time.pl > /tmp/ratefile`;
+
+my $rateFile = "/tmp/ratefile";
 
 my @fieldsArr;
 my @observations;
