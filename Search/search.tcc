@@ -43,7 +43,7 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 65536 
+#define CHUNKSIZE 4194304 
 
 struct Chunk
 {
@@ -75,10 +75,10 @@ typedef size_t Hit;
 
 #if MONITOR==1
 typedef RingBuffer< Chunk, 
-                    RingBufferType::Infinite,
+                    RingBufferType::Heap,
                     true > InputBuffer;
 typedef RingBuffer< Hit,
-                    RingBufferType::Infinite,
+                    RingBufferType::Heap,
                     true > OutputBuffer;
 #else
 typedef RingBuffer< Chunk > InputBuffer;
@@ -198,7 +198,7 @@ public:
                /**
                 * here's the game plan: 
                 * 1) the thread shared patterns "p" are stored in a globally
-                *    accessible variable "p" as uin64_t values.
+                *    accessible variable "p" as in64_t values.
                 * 2) the max radix value to subtract off is stored for each
                 *    pattern length in "h".
                 * 3) here we need to compute the initial hash for each length 
@@ -213,8 +213,8 @@ public:
                 * faster to just keep |search_terms| hash values for each 
                 * pattern.
                 */
-               uint64_t t( hash_function( chunk.chunk, 
-                                          search_term_length ) );
+               auto t( hash_function( chunk.chunk, 
+                                      search_term_length ) );
 
                /** increment var for do loop below **/
                size_t s( 0 );
