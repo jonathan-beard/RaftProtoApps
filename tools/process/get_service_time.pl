@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-my $queue_count = 12;
+my $queue_count = 24 ;
 my %field_index = 
 (
    "arrivalRate" => 39,

@@ -2,10 +2,13 @@
 use strict;
 use warnings;
 
-my $machine = shift;
+my $threadcount = 12;
+my $app = "search";
 
-`./format.pl ../../search_data/$machine/$machine\_search_infinite_12.csv ../../search_data/$machine/$machine\_search_heap_12.csv > ../../search_data/$machine/$machine\_search_data.csv`;
+foreach my $machine( @ARGV )
+{
+`./format.pl ../../$app\_data/$machine/$machine\_$app\_infinite_$threadcount.csv ../../$app\_data/$machine/$machine\_$app\_heap_$threadcount.csv > ../../$app\_data/$machine/$machine\_$app\_data.csv`;
 
-`cat ../../search_data/$machine/$machine\_search_data.csv | ./formatsvm.pl > ../../search_data/$machine/$machine\_search_svm`;
-
+`cat ../../$app\_data/$machine/$machine\_$app\_data.csv | ./formatsvm.pl > ../../$app\_data/$machine/$machine\_$app\_svm`;
+}
 exit( 0 );

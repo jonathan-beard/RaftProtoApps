@@ -50,7 +50,7 @@ main( int argc, char **argv )
    while( runs-- )
    {
       auto *output = new Matrix< thetype_t >( A->height, x->width );
-      MatrixOp< thetype_t, 12 >::multiply( A, x, output );
+      MatrixOp< thetype_t, 4 >::multiply( A, x, output );
       output->print( nullstream , Format::CSV );
       delete( output );
    }

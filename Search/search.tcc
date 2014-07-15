@@ -43,7 +43,7 @@ enum SearchAlgorithm
    Automata
 };
 
-#define CHUNKSIZE 4194304 
+#define CHUNKSIZE 16536
 
 struct Chunk
 {
@@ -75,10 +75,10 @@ typedef size_t Hit;
 
 #if MONITOR==1
 typedef RingBuffer< Chunk, 
-                    RingBufferType::Heap,
+                    RingBufferType::Infinite,
                     true > InputBuffer;
 typedef RingBuffer< Hit,
-                    RingBufferType::Heap,
+                    RingBufferType::Infinite,
                     true > OutputBuffer;
 #else
 typedef RingBuffer< Chunk > InputBuffer;

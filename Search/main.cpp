@@ -21,7 +21,7 @@ main( int argc, char **argv )
    while( runs-- )
    {
       std::vector< Hit > hits;
-      Search< 12, 512 >::search< RabinKarp >( input_file,
+      Search< 4, 512 >::search< RabinKarp >( input_file,
                                         search_term,
                                         hits );
 
