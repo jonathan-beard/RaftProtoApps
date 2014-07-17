@@ -69,11 +69,11 @@ public:
    virtual ~MatrixOp() = delete;
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
-                       RingBufferType::Infinite, 
+                       RingBufferType::Heap, 
                        true >                      PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
-                       RingBufferType::Infinite,
+                       RingBufferType::Heap,
                        true >                      OutputBuffer;
 
 #else   
@@ -167,6 +167,16 @@ public:
       /** get info **/
 
 #if MONITOR
+      std::stringstream ss;
+      ss << "/project/mercury/svardata/";
+      ss << FILEHEAD << "_mmult_" << QUEUETYPE << "_" << THREADS << ".csv";
+      std::string filename( ss.str() );
+      std::ofstream monitorfile( filename, std::fstream::app | std::fstream::out );
+      if( ! monitorfile.is_open() )
+      {
+         std::cerr << "Failed  to open file!\n";
+         exit( EXIT_FAILURE );
+      }
       std::string traits;
       {
          std::stringstream trait_stream;
@@ -182,12 +192,12 @@ public:
       {
 #if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
-         std::cout << traits;
+         monitorfile << traits;
          Monitor::QueueData::print( monitor_data, 
                                     Monitor::QueueData::Bytes, 
-                                    std::cout, 
+                                    monitorfile, 
                                     true );
-         std::cout << "\n";
+         monitorfile << "\n";
 #endif         
          delete( buffer );
          buffer = nullptr;
@@ -197,17 +207,18 @@ public:
       {
 #if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
-         std::cout << traits;
+         monitorfile << traits;
          Monitor::QueueData::print( monitor_data, 
                                     Monitor::QueueData::Bytes, 
-                                    std::cout, 
+                                    monitorfile, 
                                     true );
-         std::cout << "\n";                                    
+         monitorfile << "\n";                                    
 #endif         
          delete( buffer );
          buffer = nullptr;
       }
       delete( b_rotated );
+      monitorfile.close();
    }
 
 
@@ -268,7 +279,6 @@ public:
       return( output );
    }
    
-
    
 
 protected:

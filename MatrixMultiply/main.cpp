@@ -19,6 +19,11 @@
  */
 #include <iostream>
 #include <cstdlib>
+
+#define FILEHEAD "cloud023"
+#define QUEUETYPE "heap"
+
+
 #include "matrixop.tcc"
 
 #include "randomstring.tcc"
@@ -45,12 +50,12 @@ main( int argc, char **argv )
    auto *x      = new Matrix< thetype_t >( *A );
    
    /** to test queues we don't need to re-allocate the starting matrices **/
-   int runs( 20 );
+   int runs( 1 );
    std::ofstream nullstream( "/dev/null" );
    while( runs-- )
    {
       auto *output = new Matrix< thetype_t >( A->height, x->width );
-      MatrixOp< thetype_t, 4 >::multiply( A, x, output );
+      MatrixOp< thetype_t, 12 >::multiply( A, x, output );
       output->print( nullstream , Format::CSV );
       delete( output );
    }
