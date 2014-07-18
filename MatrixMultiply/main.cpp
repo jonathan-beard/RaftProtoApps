@@ -20,8 +20,7 @@
 #include <iostream>
 #include <cstdlib>
 
-#define FILEHEAD "cloud023"
-#define QUEUETYPE "heap"
+#define QUEUETYPE "infinite"
 
 
 #include "matrixop.tcc"

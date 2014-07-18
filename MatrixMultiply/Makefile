@@ -1,5 +1,5 @@
-CC     = icc
-CXX    = icpc
+CC     = gcc
+CXX    = g++
 
 
 include ../../simpleringbuffer/buffer.makefile

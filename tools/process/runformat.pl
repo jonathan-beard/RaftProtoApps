@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 my $threadcount = 12;
-my $app = "search";
+my $app = "matrix_multiply_data";
 
 foreach my $machine( @ARGV )
 {

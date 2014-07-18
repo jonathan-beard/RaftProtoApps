@@ -69,11 +69,11 @@ public:
    virtual ~MatrixOp() = delete;
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
-                       RingBufferType::Heap, 
+                       RingBufferType::Infinite, 
                        true >                      PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
-                       RingBufferType::Heap,
+                       RingBufferType::Infinite,
                        true >                      OutputBuffer;
 
 #else   
@@ -169,7 +169,8 @@ public:
 #if MONITOR
       std::stringstream ss;
       ss << "/project/mercury/svardata/";
-      ss << FILEHEAD << "_mmult_" << QUEUETYPE << "_" << THREADS << ".csv";
+      std::string filehead( SystemInfo::getSystemProperty( Trait::NodeName ) );
+      ss << filehead << "_mmult_" << QUEUETYPE << "_" << THREADS << ".csv";
       std::string filename( ss.str() );
       std::ofstream monitorfile( filename, std::fstream::app | std::fstream::out );
       if( ! monitorfile.is_open() )
