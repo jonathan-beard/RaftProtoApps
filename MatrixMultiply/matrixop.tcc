@@ -69,11 +69,11 @@ public:
    virtual ~MatrixOp() = delete;
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
-                       RingBufferType::Infinite, 
+                       RingBufferType::Heap, 
                        true >                      PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
-                       RingBufferType::Infinite,
+                       RingBufferType::Heap,
                        true >                      OutputBuffer;
 
 #else   

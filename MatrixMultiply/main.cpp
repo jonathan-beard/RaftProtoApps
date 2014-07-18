@@ -20,7 +20,7 @@
 #include <iostream>
 #include <cstdlib>
 
-#define QUEUETYPE "infinite"
+#define QUEUETYPE "heap"
 
 
 #include "matrixop.tcc"
@@ -49,7 +49,7 @@ main( int argc, char **argv )
    auto *x      = new Matrix< thetype_t >( *A );
    
    /** to test queues we don't need to re-allocate the starting matrices **/
-   int runs( 1 );
+   int runs( 20 );
    std::ofstream nullstream( "/dev/null" );
    while( runs-- )
    {
