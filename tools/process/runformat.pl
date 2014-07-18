@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 my $threadcount = 12;
-my $app = "matrix_multiply_data";
+my $app = "mmult";
 
 foreach my $machine( @ARGV )
 {
