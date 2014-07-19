@@ -69,11 +69,15 @@ while( <> )
    my $line = $_;
    chomp( $line );
    my @arr = split /,/, $line;
+   print $headingshash->{"QueueMeanOccupancy"}."\n";
+   exit( 0 );
    my $arrivalServiceTime = $arr[ $headingshash->{ "ProducerDistributionMean" } ];
    my $serverServiceTime  = $arr[ $headingshash->{ "ConsumerDistributionMean" } ];
    my $mm1 = mmone( $arrivalServiceTime, $serverServiceTime );
    #my $md1 = mdone( $arrivalServiceTime, $serverServiceTime );
    my $meanOccupancy = $arr[ $headingshash->{"QueueMeanOccupancy"} ];
+   print $meanOccupancy."\n";
+   print $mm1."\n";
    my $dist = distance( $meanOccupancy, [ $mm1 ] );
    my $rho  = 0;
    if( $arrivalServiceTime == 0 || $serverServiceTime == 0 )

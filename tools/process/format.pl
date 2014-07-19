@@ -135,7 +135,8 @@ sub initializeObservations($$$)
       {
          foreach my $field ( @line )
          {
-            $field =~ s/^ //;
+            $field =~ s/^\s+//;
+            $field =~ s/\s+$//;
          }
          ##
          # while we're here update the rates and distribution fields
