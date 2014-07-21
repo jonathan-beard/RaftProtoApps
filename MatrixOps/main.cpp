@@ -33,7 +33,7 @@
 
 Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
-typedef float thetype_t;
+typedef int thetype_t;
 
 int
 main( int argc, char **argv )
@@ -41,8 +41,8 @@ main( int argc, char **argv )
    
     
    //const std::string filename( "randomarray.csv" );
-   const std::string filename( "/project/mercury/svardata/10000_10000_float.csv" );
-   //const std::string filename( "intmatrix100_100.csv" );
+   //const std::string filename( "/project/mercury/svardata/10000_10000_float.csv" );
+   const std::string filename( "intmatrix100_100.csv" );
    //const std::string filename( "supersmall.csv" );
    
    auto *A = Matrix< thetype_t >::initFromFile( filename );
@@ -51,19 +51,19 @@ main( int argc, char **argv )
    auto *x      = new Matrix< thetype_t >( *A );
    
    /** to test queues we don't need to re-allocate the starting matrices **/
-   int runs( 20 );
-   std::ofstream nullstream( "/dev/null" );
+   int runs( 1 );
+   std::ofstream nullstream( "/project/mercury/svardata/temp.csv" );
    while( runs-- )
    {
       auto *output = new Matrix< thetype_t >( A->height, x->width );
 #ifdef MULT      
-      MatrixOp< thetype_t, 12 >::multiply( A, x, output );
+      MatrixOp< thetype_t, 2 >::multiply( A, x, output );
 #elif defined ADD      
-      output->print( nullstream , Format::CSV );
+      MatrixOp< thetype_t, 2 >::add( A, x, output );
 #else
 #warning No operation defined!
 #endif
-      
+      output->print( nullstream , Format::CSV );
       delete( output );
    }
 

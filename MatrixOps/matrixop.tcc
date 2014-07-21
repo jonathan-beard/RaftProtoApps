@@ -86,7 +86,7 @@ public:
 #else   
    typedef RingBuffer< ParallelMatrixMult< T > >            PBuffer;
    typedef RingBuffer< OutputValue< T > >                   OutputBuffer;
-   typedef RingBuffer< ParallelAdd< T, 256 > >              PBufferAdd;
+   typedef RingBuffer< ParallelAddStruct< T, 256 > >        PBufferAdd;
    typedef RingBuffer< ParallelAddOutputStruct< T, 256 > >  OutputBufferAdd;
 #endif
    
@@ -228,7 +228,9 @@ public:
          buffer = nullptr;
       }
       delete( b_rotated );
+#if MONITOR      
       monitorfile.close();
+#endif      
    }
 
 
@@ -273,22 +275,20 @@ public:
       return( output );
    }
    
-   static Matrix< T >* add( Matrix< T > &a, Matrix< T > &b )
+   static void add( Matrix< T > *a, Matrix< T > *b, Matrix< T > *output )
    {
-      if( a.height != b.height )
+      if( a->height != b->height )
       {
          //TODO, make some exceptions
          std::cerr << "Matrices must have the same height!\n";
-         return( nullptr );
+         return;
       }
-      if( a.width != b.width )
+      if( a->width != b->width )
       {
          //TODO, throw proper exception
          std::cerr << "Matricies must have the same width!\n";
-         return( nullptr );
+         return;
       }
-
-      Matrix< T > *output( new Matrix< T >( a.height, a.width ) );
       
       //setup parallel workers
       std::array< std::thread*,  THREADS + 1 /* consumer thread */ > thread_pool;
@@ -309,15 +309,18 @@ public:
       thread_pool[ THREADS ] = new std::thread(    add_thread_consumer,
                                                    std::ref( output_list ),
                                                    output );
+      
       /** lets add! **/
       const uint16_t chunksize( 256 /** TODO, rethink where this is chosen **/ );
       int64_t buffer_index( 0 );
-      const auto end_index( a.height * a.width );
+      const auto end_index( a->height * a->width );
       for( size_t index( 0 ); index < end_index; index += chunksize )
       {
          auto &data( buffer_list[ buffer_index ]->allocate() );
          data.start_index = index;
-         data.length      = ( end_index - index );
+         data.length      = 
+            ( (end_index - index) > chunksize ? chunksize : (end_index - index));
+         
          /** copy data, future automagically decide if we can do pass by reference **/
          for( size_t data_index( index ); data_index < data.length; data_index++ )
          {
@@ -398,7 +401,9 @@ public:
          delete( buffer );
          buffer = nullptr;
       }
+#if MONITOR      
       monitorfile.close();
+#endif      
    }
 
 protected:
@@ -474,10 +479,15 @@ protected:
       assert( output != nullptr );
       ParallelAddStruct< T, 256 > data;
       RBSignal sig( RBSignal::NONE );
-      while( sig != RBSignal::RBEOF )
+      while( true )
       {
          buffer->pop( data, &sig );
          ParallelAddOutputStruct< T, 256 > &scratch( output->allocate() );
+         if( sig == RBSignal::RBEOF )
+         {
+            output->push( sig );
+            return;
+         }
          /* copy housekeeping info */
          scratch.start_index = data.start_index;
          scratch.length      = data.length;
@@ -510,14 +520,15 @@ protected:
                if( sig == RBSignal::RBEOF )
                {
                   sig_count++;
-                  goto END;
                }
-               for( size_t index( data.start_index ); index < data.length; index++ )
+               else
                {
-                  output->matrix[ index ] = data.output[ index - data.start_index ];
+                  for( size_t index( data.start_index ); index < data.length; index++ )
+                  {
+                     output->matrix[ index ] = data.output[ index - data.start_index ];
+                  }
                }
             }
-            END:;
          }
       }
    }
