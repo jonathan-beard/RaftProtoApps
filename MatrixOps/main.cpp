@@ -29,6 +29,8 @@
 #include "SystemClock.tcc"
 #include <cassert>
 
+#define ADD 1
+
 Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
 typedef float thetype_t;
@@ -54,8 +56,14 @@ main( int argc, char **argv )
    while( runs-- )
    {
       auto *output = new Matrix< thetype_t >( A->height, x->width );
+#ifdef MULT      
       MatrixOp< thetype_t, 12 >::multiply( A, x, output );
+#elif defined ADD      
       output->print( nullstream , Format::CSV );
+#else
+#warning No operation defined!
+#endif
+      
       delete( output );
    }
 

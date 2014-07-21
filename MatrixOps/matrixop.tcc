@@ -33,10 +33,11 @@
 #include <functional>
 #include "ringbuffer.tcc"
 #include "ParallelMatrixMult.tcc"
+#include "ParallelAdd.tcc"
 #include "Matrix.tcc"
 #include "systeminfo.hpp"
 
-#define MONITOR      1
+#define MONITOR      0
 
 
 template < typename Type > struct  OutputValue
@@ -70,15 +71,23 @@ public:
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
                        RingBufferType::Heap, 
-                       true >                      PBuffer;
+                       true >                               PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
                        RingBufferType::Heap,
-                       true >                      OutputBuffer;
-
+                       true >                               OutputBuffer;
+   
+   typedef RingBuffer< ParallelAddStruct< T, 256 >, 
+                       RingBufferType::Heap, 
+                       true >                               PBufferAdd;
+   typedef RingBuffer< ParallelAddOutputStruct< T, 256 >,
+                       RingBufferType::Heap,
+                       true >                               OutputBufferAdd;
 #else   
-   typedef RingBuffer< ParallelMatrixMult< T > >   PBuffer;
-   typedef RingBuffer< OutputValue< T > >          OutputBuffer;
+   typedef RingBuffer< ParallelMatrixMult< T > >            PBuffer;
+   typedef RingBuffer< OutputValue< T > >                   OutputBuffer;
+   typedef RingBuffer< ParallelAdd< T, 256 > >              PBufferAdd;
+   typedef RingBuffer< ParallelAddOutputStruct< T, 256 > >  OutputBufferAdd;
 #endif
    
    /**
@@ -254,25 +263,9 @@ public:
       return( output );
    }
       
-   static Matrix< T >* add( Matrix< T > &a, Matrix< T > &b ) 
+   static Matrix< T >* add_scalar( Matrix< T > &a, T val )
    {
-      if( a.height != b.height || a.width != b.width )
-      {
-         //TODO, again, throw an exception
-         std::cerr << "Matrices must be of the same dimensionality\n";
-         return( nullptr );
-      }
-      Matrix< T > *output = new Matrix< T >( a.height, a.width );
-      for( size_t i( 0 ); i < ( a.height * b.width ); i++ )
-      {
-         output->matrix[ i ] = a.matrix[ i ] + b.matrix[ i ];
-      }
-      return( output );
-   }
-
-   static Matrix< T >* add( Matrix< T > &a, T val )
-   {
-      Matrix< T > *output = new Matrix< T >( a.height, a.width );
+      Matrix< T > *output( new Matrix< T >( a.height, a.width ) );
       for( size_t i( 0 ); i < ( a.height * a.width ); i++ )
       {
          output->matrix[ i ] = a.matrix[ i ] + val;
@@ -280,7 +273,133 @@ public:
       return( output );
    }
    
-   
+   static Matrix< T >* add( Matrix< T > &a, Matrix< T > &b )
+   {
+      if( a.height != b.height )
+      {
+         //TODO, make some exceptions
+         std::cerr << "Matrices must have the same height!\n";
+         return( nullptr );
+      }
+      if( a.width != b.width )
+      {
+         //TODO, throw proper exception
+         std::cerr << "Matricies must have the same width!\n";
+         return( nullptr );
+      }
+
+      Matrix< T > *output( new Matrix< T >( a.height, a.width ) );
+      
+      //setup parallel workers
+      std::array< std::thread*,  THREADS + 1 /* consumer thread */ > thread_pool;
+      std::array< PBufferAdd*,      THREADS >    buffer_list;
+      std::array< OutputBufferAdd*, THREADS >    output_list;
+
+      for( size_t i( 0 ); i < THREADS; i++ )
+      {
+         buffer_list[ i ] = new PBufferAdd(        5000 );
+         output_list[ i ] = new OutputBufferAdd(   5000 );
+      }
+      for( size_t i( 0 ); i < THREADS; i++ )
+      {
+         thread_pool[ i ] = new std::thread( add_thread_worker,
+                                             buffer_list[ i ],
+                                             output_list[ i ] );
+      }
+      thread_pool[ THREADS ] = new std::thread(    add_thread_consumer,
+                                                   std::ref( output_list ),
+                                                   output );
+      /** lets add! **/
+      const uint16_t chunksize( 256 /** TODO, rethink where this is chosen **/ );
+      int64_t buffer_index( 0 );
+      const auto end_index( a.height * a.width );
+      for( size_t index( 0 ); index < end_index; index += chunksize )
+      {
+         auto &data( buffer_list[ buffer_index ]->allocate() );
+         data.start_index = index;
+         data.length      = ( end_index - index );
+         /** copy data, future automagically decide if we can do pass by reference **/
+         for( size_t data_index( index ); data_index < data.length; data_index++ )
+         {
+            data.a[ data_index ] = a->matrix[ data_index ];
+            data.b[ data_index ] = b->matrix[ data_index ];
+         }
+         buffer_list[ buffer_index ]->push();
+         buffer_index = (buffer_index + 1 ) % THREADS;
+      }
+
+
+      //shutdown parallel workers
+      /** send all dummy message **/
+      for( size_t i( 0 ); i < THREADS; i++ )
+      {
+         auto &dummy( buffer_list[ i ]->allocate() );
+         /** keep it from being compiled out by an overly aggressive compiler **/
+         dummy.length = 0;
+         buffer_list[ i ]->push( RBSignal::RBEOF );
+      }
+      /** join threads **/
+      for( auto *thread : thread_pool )
+      {
+         thread->join();
+         delete( thread );
+         thread = nullptr;
+      }
+      /** get info **/
+#if MONITOR
+      std::stringstream ss;
+      ss << "/project/mercury/svardata/";
+      std::string filehead( SystemInfo::getSystemProperty( Trait::NodeName ) );
+      ss << filehead << "_madd_" << QUEUETYPE << "_" << THREADS << ".csv";
+      std::string filename( ss.str() );
+      std::ofstream monitorfile( filename, std::fstream::app | std::fstream::out );
+      if( ! monitorfile.is_open() )
+      {
+         std::cerr << "Failed  to open file!\n";
+         exit( EXIT_FAILURE );
+      }
+      std::string traits;
+      {
+         std::stringstream trait_stream;
+         const auto num_traits( SystemInfo::getNumTraits() );
+         for( auto index( 0 ); index < num_traits; index++ )
+         {
+            trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
+         }
+         traits = trait_stream.str();
+      }
+#endif
+      for( auto *buffer : buffer_list )
+      {
+#if MONITOR         
+         auto &monitor_data( buffer->getQueueData() );
+         monitorfile << traits;
+         Monitor::QueueData::print( monitor_data, 
+                                    Monitor::QueueData::Bytes, 
+                                    monitorfile, 
+                                    true );
+         monitorfile << "\n";
+#endif         
+         delete( buffer );
+         buffer = nullptr;
+      }
+      
+      for( auto *buffer : output_list )
+      {
+#if MONITOR         
+         auto &monitor_data( buffer->getQueueData() );
+         monitorfile << traits;
+         Monitor::QueueData::print( monitor_data, 
+                                    Monitor::QueueData::Bytes, 
+                                    monitorfile, 
+                                    true );
+         monitorfile << "\n";                                    
+#endif         
+         delete( buffer );
+         buffer = nullptr;
+      }
+      monitorfile.close();
+   }
 
 protected:
    static std::pair< int, 
@@ -347,6 +466,60 @@ protected:
          }
       }
       return;
+   }
+
+   static void add_thread_worker( PBufferAdd *buffer, OutputBufferAdd *output )
+   {
+      assert( buffer != nullptr );
+      assert( output != nullptr );
+      ParallelAddStruct< T, 256 > data;
+      RBSignal sig( RBSignal::NONE );
+      while( sig != RBSignal::RBEOF )
+      {
+         buffer->pop( data, &sig );
+         ParallelAddOutputStruct< T, 256 > &scratch( output->allocate() );
+         /* copy housekeeping info */
+         scratch.start_index = data.start_index;
+         scratch.length      = data.length;
+         if( scratch.length > 0 )
+         {
+            /* do the adding */
+            for( size_t index( 0 ); index < 256; index++ )
+            {
+               scratch.output[ index ] = data.a[ index ] + data.b[ index ];
+            }
+         }
+         output->push( sig );
+      }
+      return;
+   }
+
+   static void add_thread_consumer( std::array< OutputBufferAdd*, THREADS > &buffer,
+                                    Matrix< T > *output )
+   {
+      int sig_count( 0 );
+      ParallelAddOutputStruct< T , 256 > data;
+      RBSignal sig( RBSignal::NONE );
+      while( sig_count < THREADS )
+      {
+         for( auto it( buffer.begin() ); it != buffer.end(); ++it )
+         {
+            if( (*it)->size() > 0 )
+            {
+               (*it)->pop( data, &sig );
+               if( sig == RBSignal::RBEOF )
+               {
+                  sig_count++;
+                  goto END;
+               }
+               for( size_t index( data.start_index ); index < data.length; index++ )
+               {
+                  output->matrix[ index ] = data.output[ index - data.start_index ];
+               }
+            }
+            END:;
+         }
+      }
    }
 };
 #endif /* END _MATRIXOP_TCC_ */
