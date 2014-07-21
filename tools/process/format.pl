@@ -205,7 +205,7 @@ sub reformatColumns( $$ )
    {
       for my $hash ( keys %{ $hashlist{ $oldindex } } )
       {
-         #print STDERR $oldindex." - ".$hash." - ".$hashlist{ $oldindex }->{ $hash }."\n";
+         print STDERR $oldindex." - ".$hash." - ".$hashlist{ $oldindex }->{ $hash }."\n";
       }
    }
   
@@ -219,6 +219,7 @@ sub reformatColumns( $$ )
       79 => ""
    );
 
+   
    foreach my $obs ( @$observations )
    {
       my @newobsline = ( ( 0 ) x $svmKeyCount );
@@ -233,14 +234,18 @@ sub reformatColumns( $$ )
          if( exists $hashlist{ $index }->{ $obs->[ $index ] })
          {
             ##
-            # now we need to get the value of the observation and get the new index to set to 1
+            # now we need to get the value of the observation 
+            # and get the new index to set to 1
+            ##
             $newobsline[ $hashlist{ $index }->{ $obs->[ $index ] } ] = 1;
             $newIndex += 0 + ( keys $hashlist{ $index } );
+            print STDERR "$newIndex\n";
          }
          else
          {
             $newobsline[ $newIndex++ ] = $obs->[ $index ];
          }
+         #print STDERR "$newIndex - $newobsline[ $newIndex ]\n";
          $index++;
          END:;
       }

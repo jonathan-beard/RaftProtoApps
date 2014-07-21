@@ -61,23 +61,19 @@ my %classes = ( "None" => 0 );
 @classes{ keys %models } = (values %models);
 
 my $precision = 5;
-open OUTPUTFILE, ">svmkeys.csv";
-my $printsvmkeys = 1;
+#open OUTPUTFILE, ">svmkeys.csv";
+#my $printsvmkeys = 1;
 my $initialized = 0;
 while( <> )
 {
    my $line = $_;
    chomp( $line );
    my @arr = split /,/, $line;
-   print $headingshash->{"QueueMeanOccupancy"}."\n";
-   exit( 0 );
    my $arrivalServiceTime = $arr[ $headingshash->{ "ProducerDistributionMean" } ];
    my $serverServiceTime  = $arr[ $headingshash->{ "ConsumerDistributionMean" } ];
    my $mm1 = mmone( $arrivalServiceTime, $serverServiceTime );
    #my $md1 = mdone( $arrivalServiceTime, $serverServiceTime );
    my $meanOccupancy = $arr[ $headingshash->{"QueueMeanOccupancy"} ];
-   print $meanOccupancy."\n";
-   print $mm1."\n";
    my $dist = distance( $meanOccupancy, [ $mm1 ] );
    my $rho  = 0;
    if( $arrivalServiceTime == 0 || $serverServiceTime == 0 )
@@ -92,6 +88,7 @@ while( <> )
    # assign class
    ##
    my $class = assignclass( $dist , $precision, \%classes, $rho );
+   
    my $modelDist = distanceModel( [ ["MM1",$mm1] ] );
    foreach my $arr ( @$modelDist )
    {
@@ -154,14 +151,14 @@ while( <> )
       if( ! exists $linesToSkip{ $i } )
       {
          push( @outputline, ($index).":".$arr[ $i ] );
-         if( $printsvmkeys == 1 )
-         {
-            print OUTPUTFILE $index.",$reverseheadingshash{ $i }\n";  
-         }
+         #if( $printsvmkeys == 1 )
+         #{
+         #   print OUTPUTFILE $index.",$reverseheadingshash{ $i }\n";  
+         #}
          $index++;
       }
    }
-   $printsvmkeys = 0;
+   #$printsvmkeys = 0;
    print STDOUT join(" ", @outputline )."\n";
    END:;
 }
