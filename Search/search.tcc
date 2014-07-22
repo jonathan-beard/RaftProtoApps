@@ -75,10 +75,10 @@ typedef size_t Hit;
 
 #if MONITOR==1
 typedef RingBuffer< Chunk, 
-                    RingBufferType::Infinite,
+                    RingBufferType::Heap,
                     true > InputBuffer;
 typedef RingBuffer< Hit,
-                    RingBufferType::Infinite,
+                    RingBufferType::Heap,
                     true > OutputBuffer;
 #else
 typedef RingBuffer< Chunk > InputBuffer;

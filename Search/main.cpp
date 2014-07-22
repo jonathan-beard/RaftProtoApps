@@ -13,10 +13,10 @@ int
 main( int argc, char **argv )
 {
    /** TODO add an actual menu **/
-   if( argc < 2 )
-   {
-      std::cerr << "There should be more than a single command line argument!!\n";
-   }
+   //if( argc < 2 )
+   //{
+   //   std::cerr << "There should be more than a single command line argument!!\n";
+   //}
    std::string input_file  = "/project/mercury/svardata/foobarfile";
    std::string search_term = "foobar";
 
