@@ -17,10 +17,10 @@ main( int argc, char **argv )
    //{
    //   std::cerr << "There should be more than a single command line argument!!\n";
    //}
-   std::string input_file  = "/project/mercury/svardata/foobarfile";
+   std::string input_file  = "/project/mercury/svardata/mediumfoobarfile";
    std::string search_term = "foobar";
 
-   int runs( 1 );
+   int runs( 20 );
    while( runs-- )
    {
       std::vector< Hit > hits;
