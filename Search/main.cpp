@@ -13,14 +13,14 @@ int
 main( int argc, char **argv )
 {
    /** TODO add an actual menu **/
-   if( argc < 2 )
-   {
-      std::cerr << "There should be more than a single command line argument!!\n";
-   }
-   std::string input_file  = "/project/mercury/svardata/foobarfile";
+   //if( argc < 2 )
+   //{
+   //   std::cerr << "There should be more than a single command line argument!!\n";
+   //}
+   std::string input_file  = "/project/mercury/svardata/mediumfoobarfile";
    std::string search_term = "foobar";
 
-   int runs( 1 );
+   int runs( 20 );
    while( runs-- )
    {
       std::vector< Hit > hits;
