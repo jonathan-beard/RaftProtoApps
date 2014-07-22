@@ -4,6 +4,9 @@
 #include <string>
 #include <cstdint>
 #include <cinttypes>
+
+#define QUEUETYPE "heap"
+
 #include "search.tcc"
 
 int
@@ -14,14 +17,14 @@ main( int argc, char **argv )
    {
       std::cerr << "There should be more than a single command line argument!!\n";
    }
-   std::string input_file  = argv[ 2 ];
-   std::string search_term = argv[ 1 ];
+   std::string input_file  = "/project/mercury/svardata/foobarfile";
+   std::string search_term = "foobar";
 
-   int runs( 20 );
+   int runs( 1 );
    while( runs-- )
    {
       std::vector< Hit > hits;
-      Search< 4, 512 >::search< RabinKarp >( input_file,
+      Search< 12, 512 >::search< RabinKarp >( input_file,
                                         search_term,
                                         hits );
 

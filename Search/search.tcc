@@ -295,6 +295,17 @@ public:
          th = nullptr;
       }
 #if MONITOR==1
+      std::stringstream ss;
+      ss << "/project/mercury/svardata/";
+      std::string filehead( SystemInfo::getSystemProperty( Trait::NodeName ) );
+      ss << filehead << "_search_" << QUEUETYPE << "_" << THREADS << ".csv";
+      std::string m_filename( ss.str() );
+      std::ofstream monitorfile( m_filename, std::fstream::app | std::fstream::out );
+      if( ! monitorfile.is_open() )
+      {
+         std::cerr << "Failed to open file!\n";
+         exit( EXIT_FAILURE );
+      }
       std::string traits;
       {
          std::stringstream trait_stream;
@@ -310,12 +321,12 @@ public:
       {
 #if MONITOR==1
          auto &monitor_data( buff->getQueueData() );
-         std::cout << traits;
+         monitorfile << traits;
          Monitor::QueueData::print( monitor_data,
                                     Monitor::QueueData::Bytes,
-                                    std::cout,
+                                    monitorfile,
                                     true );
-         std::cout << "\n";
+         monitorfile << "\n";
 #endif
          delete( buff );
          buff = nullptr;
@@ -325,18 +336,21 @@ public:
       {
 #if MONITOR==1
          auto &monitor_data( buff->getQueueData() );
-         std::cout << traits;
+         monitorfile << traits;
          Monitor::QueueData::print( monitor_data,
                                     Monitor::QueueData::Bytes,
-                                    std::cout,
+                                    monitorfile,
                                     true );
-         std::cout << "\n";
+         monitorfile << "\n";
 #endif
          delete( buff );
          buff = nullptr;
       }
       
       file_input.close();
+#if MONITOR
+      monitorfile.close();
+#endif
    }
 private:
 
