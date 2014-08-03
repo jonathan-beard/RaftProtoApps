@@ -157,7 +157,7 @@ while( <> )
          $index++;
       }
    }
-   $printsvmkeys = 0;
+   #$printsvmkeys = 0;
    print STDOUT join(" ", @outputline )."\n";
    END:;
 }
