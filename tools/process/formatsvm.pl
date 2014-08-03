@@ -53,8 +53,8 @@ my %linesToSkip = (
 );
 
 my %models = ( 
-"MM1" => 1
-#,"MD1" => 2
+#"MM1" => 1
+"MD1" => 1
 );
 
 my %classes = ( "None" => 0 );
@@ -71,10 +71,10 @@ while( <> )
    my @arr = split /,/, $line;
    my $arrivalServiceTime = $arr[ $headingshash->{ "ProducerDistributionMean" } ];
    my $serverServiceTime  = $arr[ $headingshash->{ "ConsumerDistributionMean" } ];
-   my $mm1 = mmone( $arrivalServiceTime, $serverServiceTime );
-   #my $md1 = mdone( $arrivalServiceTime, $serverServiceTime );
+   #my $mm1 = mmone( $arrivalServiceTime, $serverServiceTime );
+   my $md1 = mdone( $arrivalServiceTime, $serverServiceTime );
    my $meanOccupancy = $arr[ $headingshash->{"QueueMeanOccupancy"} ];
-   my $dist = distance( $meanOccupancy, [ $mm1 ] );
+   my $dist = distance( $meanOccupancy, [ $md1 ] );
    my $rho  = 0;
    if( $arrivalServiceTime == 0 || $serverServiceTime == 0 )
    {
@@ -88,8 +88,7 @@ while( <> )
    # assign class
    ##
    my $class = assignclass( $dist , $precision, \%classes, $rho );
-   
-   my $modelDist = distanceModel( [ ["MM1",$mm1] ] );
+   my $modelDist = distanceModel( [ ["MD1",$md1] ] );
    foreach my $arr ( @$modelDist )
    {
       my ($name, $val) = @$arr;
@@ -158,7 +157,7 @@ while( <> )
          $index++;
       }
    }
-   #$printsvmkeys = 0;
+   $printsvmkeys = 0;
    print STDOUT join(" ", @outputline )."\n";
    END:;
 }
@@ -308,8 +307,18 @@ sub getgradient( $$$ )
    }
    elsif( $type == ( exists $classes{ "MD1" } ? $classes{ "MD1" } : -1 ) )
    {
-      $gradient[ 0 ] = [ "pMu", 0 ];
-      $gradient[ 1 ] = [ "pLambda", 0 ];
+      $gradient[ 0 ] = [ "pMu", 
+         - ( ($lambda**3) / ( 2 * ( $mu**4 ) * ( 1 - ($lambda / $mu ) )**2 ) ) - 
+           ( ($lambda**2) / ( ( 1 - ( $lambda / $mu ) ) * $mu**3  ) ) 
+      ];
+      $gradient[ 1 ] = [ "pLambda", 
+         ( ( $lambda**2 ) / ( 2 * ($mu**3) * ( 1 - ($lambda / $mu) )**2 ) ) +
+         ( $lambda / ( ( 1 - ($lambda / $mu )) * ($mu**2))  )
+      ];
+
+      print STDOUT "$mu,$lambda,$gradient[ 0 ]->[ 1 ]\n";
+      print STDOUT "$mu,$lambda,$gradient[ 1 ]->[ 1 ]\n";
+      exit( 0 );
    }
    else
    {
