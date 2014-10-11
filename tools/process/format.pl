@@ -37,9 +37,10 @@ my $svmkeysFile  = "svmkeys.csv";
 
 
 
-my ( $obsInfiniteFile, $obsFile ) = @ARGV;
+my ( $thread_count, $obsInfiniteFile, $obsFile ) = @ARGV;
 
-`cat $obsInfiniteFile | ./get_service_time.pl > /tmp/ratefile`;
+my $queue_count = $thread_count * 2;
+`./get_service_time.pl $obsInfiniteFile $queue_count >  /tmp/ratefile`;
 
 my $rateFile = "/tmp/ratefile";
 
@@ -201,13 +202,13 @@ sub reformatColumns( $$ )
       }
    }
    
-   for my $oldindex ( keys %hashlist )
-   {
-      for my $hash ( keys %{ $hashlist{ $oldindex } } )
-      {
-         print STDERR $oldindex." - ".$hash." - ".$hashlist{ $oldindex }->{ $hash }."\n";
-      }
-   }
+   #for my $oldindex ( keys %hashlist )
+   #{
+   #   for my $hash ( keys %{ $hashlist{ $oldindex } } )
+   #   {
+   #      print STDERR $oldindex." - ".$hash." - ".$hashlist{ $oldindex }->{ $hash }."\n";
+   #   }
+   #}
   
    my %insertcolumns = 
    (
@@ -239,7 +240,7 @@ sub reformatColumns( $$ )
             ##
             $newobsline[ $hashlist{ $index }->{ $obs->[ $index ] } ] = 1;
             $newIndex += 0 + ( keys $hashlist{ $index } );
-            print STDERR "$newIndex\n";
+            #print STDERR "$newIndex\n";
          }
          else
          {

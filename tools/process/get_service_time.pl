@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 
-my $queue_count = 24 ;
 my %field_index = 
 (
    "arrivalRate" => 39,
@@ -13,7 +12,13 @@ my %queueList;
 
 my $count = 0;
 my $index = 0;
-while( <> )
+
+my ($inputfile,$queue_count) = @ARGV;
+open INPUTFILE, "<$inputfile" or die "Couldn't open $inputfile\n";
+my @lines = <INPUTFILE>;
+close(INPUTFILE);
+
+foreach( @lines )
 {
    chomp( $_ );
    my @fields = split /,/, $_;
