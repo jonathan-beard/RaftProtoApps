@@ -29,20 +29,20 @@
 #include "SystemClock.tcc"
 #include <cassert>
 
-#define ADD 1
+#define MULT 1
 
 Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
 
-typedef int thetype_t;
+typedef float thetype_t;
 
 int
 main( int argc, char **argv )
 {
    
     
-   //const std::string filename( "randomarray.csv" );
+   const std::string filename( "randomarray.csv" );
    //const std::string filename( "/project/mercury/svardata/10000_10000_float.csv" );
-   const std::string filename( "intmatrix100_100.csv" );
+   //const std::string filename( "intmatrix100_100.csv" );
    //const std::string filename( "supersmall.csv" );
    
    auto *A = Matrix< thetype_t >::initFromFile( filename );
@@ -51,20 +51,34 @@ main( int argc, char **argv )
    auto *x      = new Matrix< thetype_t >( *A );
    
    /** to test queues we don't need to re-allocate the starting matrices **/
-   int runs( 1 );
-   std::ofstream nullstream( "/project/mercury/svardata/temp.csv" );
-   while( runs-- )
+   std::ofstream nullstream( "/dev/null" );
+   std::cout.setf( std::ios::fixed );
+   std::cout << std::setprecision( 30 );
+   std::array< size_t, 1 > sizes = 
    {
-      auto *output = new Matrix< thetype_t >( A->height, x->width );
-#ifdef MULT      
-      MatrixOp< thetype_t, 2 >::multiply( A, x, output );
+//      1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 
+//      100, 1000, 10000, 100000, 1000000, 
+//      10000000, 10000000, 100000000
+        5000000000
+   };
+   for( const size_t buff_size : sizes )
+   {
+      int runs( 5 );
+      while( runs-- )
+      {
+         std::cerr << "starting: " << buff_size << " items - " << runs << "\n";
+         auto *output = new Matrix< thetype_t >( A->height, x->width );
+#ifdef MULT
+         MatrixOp< thetype_t, 8 >::multiply( A, x, output, buff_size );
+         std::cout << ",";
 #elif defined ADD      
-      MatrixOp< thetype_t, 2 >::add( A, x, output );
+         MatrixOp< thetype_t, 4 >::add( A, x, output );
 #else
 #warning No operation defined!
 #endif
-      output->print( nullstream , Format::CSV );
-      delete( output );
+         output->print( nullstream , Format::CSV );
+         delete( output );
+      }
    }
 
    delete( A );

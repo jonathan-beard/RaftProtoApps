@@ -20,6 +20,7 @@
 #ifndef _MATRIX_TCC_
 #define _MATRIX_TCC_  1
 
+
 enum Format { CSV, SPACE };
    
 

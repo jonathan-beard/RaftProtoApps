@@ -1,5 +1,5 @@
-CC     = gcc
-CXX    = g++
+CC     = icc
+CXX    = icpc
 
 
 include ../../fifo_dev/buffer.makefile
@@ -11,8 +11,8 @@ RT = -lrt
 STATIC = -static -static-libgcc -static-libstdc++
 endif
 
-CFLAGS =     -O0 -g -Wall -std=c99	  -DRDTSCP=1 
-CXXFLAGS =   -O0 -g -Wall -std=c++11 -DRDTSCP=1  
+CFLAGS =     -O1  -Wall -std=c99	  -DRDTSCP=1 
+CXXFLAGS =   -O1  -Wall -std=c++11 -DRDTSCP=1  
 
 
 COBJS =  $(RBCOBJS) 

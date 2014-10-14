@@ -36,9 +36,14 @@
 #include "ParallelAdd.tcc"
 #include "Matrix.tcc"
 #include "systeminfo.hpp"
+#include "fifo.hpp"
 
 #define MONITOR      0
 
+/** 
+ * sets chunk copy size for matrix add 
+ */
+#define CHUNKSIZE    64
 
 template < typename Type > struct  OutputValue
 {
@@ -77,17 +82,17 @@ public:
                        RingBufferType::Heap,
                        true >                               OutputBuffer;
    
-   typedef RingBuffer< ParallelAddStruct< T, 256 >, 
+   typedef RingBuffer< ParallelAddStruct< T, CHUNKSIZE >, 
                        RingBufferType::Heap, 
                        true >                               PBufferAdd;
-   typedef RingBuffer< ParallelAddOutputStruct< T, 256 >,
+   typedef RingBuffer< ParallelAddOutputStruct< T, CHUNKSIZE >,
                        RingBufferType::Heap,
                        true >                               OutputBufferAdd;
 #else   
    typedef RingBuffer< ParallelMatrixMult< T > >            PBuffer;
    typedef RingBuffer< OutputValue< T > >                   OutputBuffer;
-   typedef RingBuffer< ParallelAddStruct< T, 256 > >        PBufferAdd;
-   typedef RingBuffer< ParallelAddOutputStruct< T, 256 > >  OutputBufferAdd;
+   typedef RingBuffer< ParallelAddStruct< T, CHUNKSIZE > >        PBufferAdd;
+   typedef RingBuffer< ParallelAddOutputStruct< T, CHUNKSIZE > >  OutputBufferAdd;
 #endif
    
    /**
@@ -104,7 +109,8 @@ public:
     */
    static void multiply(   Matrix< T > *a, 
                            Matrix< T > *b,
-                           Matrix< T > *output ) 
+                           Matrix< T > *output,
+                           const size_t buffer_size ) 
                                  
    {
       assert( a != nullptr );
@@ -122,8 +128,8 @@ public:
       std::array< OutputBuffer*, THREADS >    output_list;
       for( size_t i( 0 ); i < THREADS; i++ )
       {
-         buffer_list[ i ] = new PBuffer(        5000 );
-         output_list[ i ] = new OutputBuffer(   5000 );
+         buffer_list[ i ] = new PBuffer(        buffer_size );
+         output_list[ i ] = new OutputBuffer(   buffer_size );
       }
       for( size_t i( 0 ); i < THREADS; i++ )
       {
@@ -134,7 +140,11 @@ public:
       thread_pool[ THREADS ] = new std::thread( mult_thread_consumer,
                                                     std::ref( output_list ),
                                                     output );
+      
+
       Matrix< T > *b_rotated = b->rotate();
+      const auto start_time( system_clock->getTime() );
+
       int64_t stop_index( b->height * b->width );
       uint32_t index( 0 );
       for( size_t b_row_index( 0 ); 
@@ -144,7 +154,7 @@ public:
          for( size_t a_row_index( 0 ); a_row_index < a->height; a_row_index++ )
          {
             index = (index + 1 ) % THREADS ;
-            auto &mem( buffer_list[ index ]->allocate() );
+            auto &mem( buffer_list[ index ]->template allocate<ParallelMatrixMult< T > >() );
             mem.a            = a;
             mem.a_start      = a_row_index * a->width;
             mem.a_end        = (a_row_index * a->width ) + a->width;
@@ -170,11 +180,16 @@ public:
       for( auto *thread : thread_pool )
       {
          thread->join();
+      }
+      
+      const auto end_time( system_clock->getTime() );
+      std::cout << "{" << buffer_size << "," << ( end_time - start_time ) << "}";
+      /** get info **/
+      for( auto *thread : thread_pool )
+      {
          delete( thread );
          thread = nullptr;
       }
-      /** get info **/
-
 #if MONITOR
       std::stringstream ss;
       ss << "/project/mercury/svardata/";
@@ -274,8 +289,12 @@ public:
       }
       return( output );
    }
-   
-   static void add( Matrix< T > *a, Matrix< T > *b, Matrix< T > *output )
+
+
+   static void add( Matrix< T > *a, 
+                    Matrix< T > *b, 
+                    Matrix< T > *output, 
+                    const size_t buffer_size )
    {
       if( a->height != b->height )
       {
@@ -297,8 +316,8 @@ public:
 
       for( size_t i( 0 ); i < THREADS; i++ )
       {
-         buffer_list[ i ] = new PBufferAdd(        5000 );
-         output_list[ i ] = new OutputBufferAdd(   5000 );
+         buffer_list[ i ] = new PBufferAdd(        buffer_size );
+         output_list[ i ] = new OutputBufferAdd(   buffer_size );
       }
       for( size_t i( 0 ); i < THREADS; i++ )
       {
@@ -309,14 +328,18 @@ public:
       thread_pool[ THREADS ] = new std::thread(    add_thread_consumer,
                                                    std::ref( output_list ),
                                                    output );
-      
+      const auto start_time( system_clock->getTime() );
+
       /** lets add! **/
-      const uint16_t chunksize( 256 /** TODO, rethink where this is chosen **/ );
+      const uint16_t chunksize( CHUNKSIZE /** TODO, rethink where this is chosen **/ );
       int64_t buffer_index( 0 );
       const auto end_index( a->height * a->width );
       for( size_t index( 0 ); index < end_index; index += chunksize )
       {
-         auto &data( buffer_list[ buffer_index ]->allocate() );
+         auto &data( 
+            buffer_list[ buffer_index ]-> template allocate< 
+                                             ParallelAddStruct< T, 
+                                                                CHUNKSIZE > >() );
          data.start_index = index;
          data.length      = 
             ( (end_index - index) > chunksize ? chunksize : (end_index - index));
@@ -331,12 +354,16 @@ public:
          buffer_index = (buffer_index + 1 ) % THREADS;
       }
 
+      const auto end_time( system_clock->getTime() );
+      std::cout << "{" << buffer_size << "," << ( end_time - start_time ) << "}";
 
       //shutdown parallel workers
       /** send all dummy message **/
       for( size_t i( 0 ); i < THREADS; i++ )
       {
-         auto &dummy( buffer_list[ i ]->allocate() );
+         auto &dummy( 
+            buffer_list[ i ]-> template allocate< ParallelAddStruct< T, 
+                                                                     CHUNKSIZE > >() );
          /** keep it from being compiled out by an overly aggressive compiler **/
          dummy.length = 0;
          buffer_list[ i ]->push( RBSignal::RBEOF );
@@ -429,7 +456,7 @@ protected:
          /** consume data **/
          buffer->pop( val, &sig );
 
-         OutputValue< T > &scratch( output->allocate() );
+         auto &scratch( output->template allocate< OutputValue< T > >() );
          scratch.index = val.output_index;
 
          for( size_t a_index( val.a_start ), b_index( val.b_start );
@@ -441,7 +468,6 @@ protected:
                   val.b->matrix[ b_index ];
          }
          output->push( sig );
-         scratch.value = 0;
       }
       return;
    }
@@ -477,12 +503,13 @@ protected:
    {
       assert( buffer != nullptr );
       assert( output != nullptr );
-      ParallelAddStruct< T, 256 > data;
+      ParallelAddStruct< T, CHUNKSIZE > data;
       RBSignal sig( RBSignal::NONE );
       while( true )
       {
          buffer->pop( data, &sig );
-         ParallelAddOutputStruct< T, 256 > &scratch( output->allocate() );
+         ParallelAddOutputStruct< T, CHUNKSIZE > &scratch( 
+            output-> template allocate< ParallelAddOutputStruct< T, CHUNKSIZE > >() );
          if( sig == RBSignal::RBEOF )
          {
             output->push( sig );
@@ -494,7 +521,7 @@ protected:
          if( scratch.length > 0 )
          {
             /* do the adding */
-            for( size_t index( 0 ); index < 256; index++ )
+            for( size_t index( 0 ); index < CHUNKSIZE; index++ )
             {
                scratch.output[ index ] = data.a[ index ] + data.b[ index ];
             }
@@ -508,7 +535,7 @@ protected:
                                     Matrix< T > *output )
    {
       int sig_count( 0 );
-      ParallelAddOutputStruct< T , 256 > data;
+      ParallelAddOutputStruct< T , CHUNKSIZE > data;
       RBSignal sig( RBSignal::NONE );
       while( sig_count < THREADS )
       {
