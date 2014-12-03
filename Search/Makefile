@@ -2,7 +2,7 @@ CC     ?= gcc
 CXX    ?= g++
 
 
-include ../../simpleringbuffer/buffer.makefile
+include ../../fifo_dev/buffer.makefile
 
 DIRINCS = $(RINGBUFFERDIR) 
 

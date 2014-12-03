@@ -33,8 +33,10 @@
 #include "ringbuffer.tcc"
 #include "SystemClock.tcc"
 
+/** for system info **/
+using namespace si;
 
-Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
+Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
 
 enum SearchAlgorithm 
 { 
@@ -75,10 +77,10 @@ typedef size_t Hit;
 
 #if MONITOR==1
 typedef RingBuffer< Chunk, 
-                    RingBufferType::Infinite,
+                    Type::Infinite,
                     true > InputBuffer;
 typedef RingBuffer< Hit,
-                    RingBufferType::Infinite,
+                    Type::Infinite,
                     true > OutputBuffer;
 #else
 typedef RingBuffer< Chunk > InputBuffer;
@@ -259,7 +261,7 @@ public:
       {
          /** input stream with reference to the worker thread **/
          auto *input_stream( input_buffer[ output_stream ] );
-         Chunk &chunk( input_stream->allocate() );
+         Chunk &chunk( input_stream->template allocate< Chunk >() );
          chunk.start_position = file_input.tellg();
          file_input.read( chunk.chunk, CHUNKSIZE );
          chunk.length = ( size_t )file_input.gcount();
@@ -282,7 +284,7 @@ public:
       /** until I fix the asynchronous signalling, send dummy **/ 
       for( InputBuffer *buff : input_buffer )
       {
-         Chunk &chunk( buff->allocate() );
+         Chunk &chunk( buff->allocate< Chunk >() );
          chunk.length = 0;
          buff->push( RBSignal::TERM );
       }
@@ -306,27 +308,22 @@ public:
          std::cerr << "Failed to open file!\n";
          exit( EXIT_FAILURE );
       }
-      std::string traits;
-      {
-         std::stringstream trait_stream;
-         const auto num_traits( SystemInfo::getNumTraits() );
-         for( auto index( 0 ); index < num_traits; index++ )
-         {
-            trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
-         }
-         traits = trait_stream.str();
-      }
+      //std::string traits;
+      //{
+      //   std::stringstream trait_stream;
+      //   const auto num_traits( SystemInfo::getNumTraits() );
+      //   for( auto index( 0 ); index < num_traits; index++ )
+      //   {
+      //      trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
+      //   }
+      //   traits = trait_stream.str();
+      //}
 #endif
       for( InputBuffer *buff : input_buffer )
       {
 #if MONITOR==1
-         auto &monitor_data( buff->getQueueData() );
-         monitorfile << traits;
-         Monitor::QueueData::print( monitor_data,
-                                    Monitor::QueueData::Bytes,
-                                    monitorfile,
-                                    true );
-         monitorfile << "\n";
+         //monitorfile << traits;
+         buff->printQueueData( monitorfile ) << "\n";
 #endif
          delete( buff );
          buff = nullptr;
@@ -335,13 +332,8 @@ public:
       for( OutputBuffer *buff : output_buffer )
       {
 #if MONITOR==1
-         auto &monitor_data( buff->getQueueData() );
-         monitorfile << traits;
-         Monitor::QueueData::print( monitor_data,
-                                    Monitor::QueueData::Bytes,
-                                    monitorfile,
-                                    true );
-         monitorfile << "\n";
+         //monitorfile << traits;
+         buff->printQueueData( monitorfile ) << "\n";
 #endif
          delete( buff );
          buff = nullptr;
@@ -369,15 +361,11 @@ private:
       {
          if( input->size() > 0 )
          {
-            auto &chunk( input->peek( &signal ) );
+            Chunk &chunk( input->peek< Chunk >( &signal ) );
             if( signal == RBSignal::TERM )
             {
-               /** 
-                * TODO, gotta redo the asynchronous signalling so in the mean time,
-                * this will work.
-                */
                input->recycle();
-               auto &temp( output->allocate() );
+               auto &temp( output->allocate< Hit >() );
                temp = 0;
                output->push( RBSignal::TERM );
                return;

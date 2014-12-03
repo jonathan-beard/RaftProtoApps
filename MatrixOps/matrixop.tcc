@@ -38,7 +38,8 @@
 #include "systeminfo.hpp"
 #include "fifo.hpp"
 
-#define MONITOR      0
+/** for system info **/
+using namespace si;
 
 /** 
  * sets chunk copy size for matrix add 
@@ -75,18 +76,18 @@ public:
    virtual ~MatrixOp() = delete;
 #if MONITOR == 1
    typedef RingBuffer< ParallelMatrixMult< T >, 
-                       RingBufferType::Heap, 
+                       Type::Heap, 
                        true >                               PBuffer;
    
    typedef RingBuffer< OutputValue< T >,
-                       RingBufferType::Heap,
+                       Type::Heap,
                        true >                               OutputBuffer;
    
    typedef RingBuffer< ParallelAddStruct< T, CHUNKSIZE >, 
-                       RingBufferType::Heap, 
+                       Type::Heap, 
                        true >                               PBufferAdd;
    typedef RingBuffer< ParallelAddOutputStruct< T, CHUNKSIZE >,
-                       RingBufferType::Heap,
+                       Type::Heap,
                        true >                               OutputBufferAdd;
 #else   
    typedef RingBuffer< ParallelMatrixMult< T > >            PBuffer;
@@ -143,8 +144,9 @@ public:
       
 
       Matrix< T > *b_rotated = b->rotate();
+#ifdef TIMEMATRIXOP      
       const auto start_time( system_clock->getTime() );
-
+#endif
       int64_t stop_index( b->height * b->width );
       uint32_t index( 0 );
       for( size_t b_row_index( 0 ); 
@@ -181,10 +183,11 @@ public:
       {
          thread->join();
       }
-      
+#ifdef TIMEMATRIXOP      
       const auto end_time( system_clock->getTime() );
       std::cout << "{" << buffer_size << "," << ( end_time - start_time ) << "}";
-      /** get info **/
+#endif     
+     /** get info **/
       for( auto *thread : thread_pool )
       {
          delete( thread );
@@ -202,27 +205,22 @@ public:
          std::cerr << "Failed  to open file!\n";
          exit( EXIT_FAILURE );
       }
-      std::string traits;
-      {
-         std::stringstream trait_stream;
-         const auto num_traits( SystemInfo::getNumTraits() );
-         for( auto index( 0 ); index < num_traits; index++ )
-         {
-            trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
-         }
-         traits = trait_stream.str();
-      }
+      //std::string traits;
+      //{
+      //   std::stringstream trait_stream;
+      //   const auto num_traits( SystemInfo::getNumTraits() );
+      //   for( auto index( 0 ); index < num_traits; index++ )
+      //   {
+      //      trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
+      //   }
+      //   traits = trait_stream.str();
+      //}
 #endif
       for( auto *buffer : buffer_list )
       {
 #if MONITOR         
-         auto &monitor_data( buffer->getQueueData() );
-         monitorfile << traits;
-         Monitor::QueueData::print( monitor_data, 
-                                    Monitor::QueueData::Bytes, 
-                                    monitorfile, 
-                                    true );
-         monitorfile << "\n";
+         //monitorfile << traits;
+         buffer->printQueueData( monitorfile ) << "\n";
 #endif         
          delete( buffer );
          buffer = nullptr;
@@ -231,13 +229,8 @@ public:
       for( auto *buffer : output_list )
       {
 #if MONITOR         
-         auto &monitor_data( buffer->getQueueData() );
-         monitorfile << traits;
-         Monitor::QueueData::print( monitor_data, 
-                                    Monitor::QueueData::Bytes, 
-                                    monitorfile, 
-                                    true );
-         monitorfile << "\n";                                    
+      //   monitorfile << traits;
+         buffer->printQueueData( monitorfile ) << "\n";
 #endif         
          delete( buffer );
          buffer = nullptr;
@@ -388,27 +381,23 @@ public:
          std::cerr << "Failed  to open file!\n";
          exit( EXIT_FAILURE );
       }
-      std::string traits;
-      {
-         std::stringstream trait_stream;
-         const auto num_traits( SystemInfo::getNumTraits() );
-         for( auto index( 0 ); index < num_traits; index++ )
-         {
-            trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
-         }
-         traits = trait_stream.str();
-      }
+      //std::string traits;
+      //{
+      //   std::stringstream trait_stream;
+      //   const auto num_traits( SystemInfo::getNumTraits() );
+      //   for( auto index( 0 ); index < num_traits; index++ )
+      //   {
+      //      trait_stream << SystemInfo::getSystemProperty( (Trait) index ) << ",";
+      //   }
+      //   traits = trait_stream.str();
+      //}
 #endif
       for( auto *buffer : buffer_list )
       {
 #if MONITOR         
          auto &monitor_data( buffer->getQueueData() );
-         monitorfile << traits;
-         Monitor::QueueData::print( monitor_data, 
-                                    Monitor::QueueData::Bytes, 
-                                    monitorfile, 
-                                    true );
-         monitorfile << "\n";
+         //monitorfile << traits;
+         buffer->printQueueData( monitorfile ) << "\n";
 #endif         
          delete( buffer );
          buffer = nullptr;
@@ -417,13 +406,8 @@ public:
       for( auto *buffer : output_list )
       {
 #if MONITOR         
-         auto &monitor_data( buffer->getQueueData() );
-         monitorfile << traits;
-         Monitor::QueueData::print( monitor_data, 
-                                    Monitor::QueueData::Bytes, 
-                                    monitorfile, 
-                                    true );
-         monitorfile << "\n";                                    
+         //monitorfile << traits;
+         buffer->printQueueData( monitorfile ) << "\n";
 #endif         
          delete( buffer );
          buffer = nullptr;
@@ -456,7 +440,7 @@ protected:
          /** consume data **/
          buffer->pop( val, &sig );
 
-         auto &scratch( output->template allocate< OutputValue< T > >() );
+         auto &scratch( output-> template allocate< OutputValue< T > >() );
          scratch.index = val.output_index;
 
          for( size_t a_index( val.a_start ), b_index( val.b_start );

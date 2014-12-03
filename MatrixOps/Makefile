@@ -1,5 +1,5 @@
-CC     = icc
-CXX    = icpc
+CC     = gcc
+CXX    = g++
 
 
 include ../../fifo_dev/buffer.makefile

@@ -20,6 +20,7 @@
 #include <iostream>
 #include <cstdlib>
 
+#define MONITOR   1
 #define QUEUETYPE "heap"
 
 
@@ -31,7 +32,7 @@
 
 #define MULT 1
 
-Clock *system_clock = new SystemClock< System >( 1 /* assigned core */ );
+Clock *system_clock = new SystemClock< Cycle >( 1 /* assigned core */ );
 
 typedef float thetype_t;
 
@@ -54,15 +55,9 @@ main( int argc, char **argv )
    std::ofstream nullstream( "/dev/null" );
    std::cout.setf( std::ios::fixed );
    std::cout << std::setprecision( 30 );
-   std::array< size_t, 1 > sizes = 
-   {
-//      1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 
-//      100, 1000, 10000, 100000, 1000000, 
-//      10000000, 10000000, 100000000
-        5000000000
-   };
-   for( const size_t buff_size : sizes )
-   {
+   const std::size_t buff_size( 200 );
+   //for( const size_t buff_size : sizes )
+   //{
       int runs( 5 );
       while( runs-- )
       {
@@ -79,7 +74,7 @@ main( int argc, char **argv )
          output->print( nullstream , Format::CSV );
          delete( output );
       }
-   }
+   //}
 
    delete( A );
    delete( x );
